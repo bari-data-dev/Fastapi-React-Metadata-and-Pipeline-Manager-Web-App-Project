@@ -1,0 +1,297 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Professional Metadata Management Design System */
+
+@layer base {
+  :root {
+    --background: 220 20% 98%;
+    --foreground: 220 40% 8%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 40% 8%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 40% 8%;
+
+    --primary: 217 91% 59%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 217 91% 75%;
+
+    --secondary: 214 32% 91%;
+    --secondary-foreground: 220 40% 8%;
+
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 16% 46%;
+
+    --accent: 142 76% 36%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 217 91% 59%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 220 30% 5%;
+    --sidebar-foreground: 220 15% 85%;
+    --sidebar-primary: 217 91% 59%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 20% 15%;
+    --sidebar-accent-foreground: 220 15% 85%;
+    --sidebar-border: 220 20% 20%;
+    --sidebar-ring: 217 91% 59%;
+
+    /* Professional gradients */
+    --gradient-primary: linear-gradient(
+      135deg,
+      hsl(217 91% 59%),
+      hsl(217 91% 75%)
+    );
+    --gradient-secondary: linear-gradient(
+      135deg,
+      hsl(142 76% 36%),
+      hsl(142 76% 50%)
+    );
+    --gradient-hero: linear-gradient(
+      135deg,
+      hsl(217 91% 59% / 0.9),
+      hsl(142 76% 36% / 0.8)
+    );
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(220 14% 96%));
+    --gradient-glass: linear-gradient(
+      145deg,
+      hsl(0 0% 100% / 0.8),
+      hsl(220 14% 96% / 0.6)
+    );
+
+    /* Professional shadows */
+    --shadow-elegant: 0 10px 30px -10px hsl(217 91% 59% / 0.3);
+    --shadow-glow: 0 0 40px hsl(217 91% 75% / 0.4);
+    --shadow-card: 0 4px 20px -4px hsl(220 40% 8% / 0.1);
+    --shadow-floating: 0 20px 60px -20px hsl(217 91% 59% / 0.3);
+
+    /* Smooth animations */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  }
+
+  .dark {
+    --background: 220 40% 4%;
+    --foreground: 220 15% 95%;
+
+    --card: 220 30% 8%;
+    --card-foreground: 220 15% 95%;
+
+    --popover: 220 30% 8%;
+    --popover-foreground: 220 15% 95%;
+
+    --primary: 217 91% 65%;
+    --primary-foreground: 220 40% 4%;
+    --primary-glow: 217 91% 80%;
+
+    --secondary: 220 20% 15%;
+    --secondary-foreground: 220 15% 85%;
+
+    --muted: 220 20% 12%;
+    --muted-foreground: 220 15% 65%;
+
+    --accent: 142 76% 45%;
+    --accent-foreground: 220 40% 4%;
+
+    --destructive: 0 84% 65%;
+    --destructive-foreground: 220 40% 4%;
+
+    --border: 220 20% 20%;
+    --input: 220 20% 20%;
+    --ring: 217 91% 65%;
+
+    --sidebar-background: 220 40% 2%;
+    --sidebar-foreground: 220 15% 85%;
+    --sidebar-primary: 217 91% 65%;
+    --sidebar-primary-foreground: 220 40% 2%;
+    --sidebar-accent: 220 20% 8%;
+    --sidebar-accent-foreground: 220 15% 85%;
+    --sidebar-border: 220 20% 15%;
+    --sidebar-ring: 217 91% 65%;
+
+    /* Dark mode gradients */
+    --gradient-primary: linear-gradient(
+      135deg,
+      hsl(217 91% 65%),
+      hsl(217 91% 80%)
+    );
+    --gradient-secondary: linear-gradient(
+      135deg,
+      hsl(142 76% 45%),
+      hsl(142 76% 60%)
+    );
+    --gradient-hero: linear-gradient(
+      135deg,
+      hsl(217 91% 65% / 0.9),
+      hsl(142 76% 45% / 0.8)
+    );
+    --gradient-card: linear-gradient(145deg, hsl(220 30% 8%), hsl(220 20% 12%));
+    --gradient-glass: linear-gradient(
+      145deg,
+      hsl(220 30% 8% / 0.8),
+      hsl(220 20% 12% / 0.6)
+    );
+
+    /* Dark mode shadows */
+    --shadow-elegant: 0 10px 30px -10px hsl(217 91% 65% / 0.4);
+    --shadow-glow: 0 0 40px hsl(217 91% 80% / 0.5);
+    --shadow-card: 0 4px 20px -4px hsl(220 40% 4% / 0.3);
+    --shadow-floating: 0 20px 60px -20px hsl(217 91% 65% / 0.4);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  /* Professional Hero Section */
+  .hero-section {
+    background-image: url("./assets/data-analytics-bg.png");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero-section::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+      135deg,
+      hsl(220 40% 4% / 0.85),
+      hsl(217 91% 59% / 0.75)
+    );
+  }
+
+  /* Professional Cards */
+  .professional-card {
+    background: var(--gradient-card);
+    box-shadow: var(--shadow-card);
+    border: 1px solid hsl(var(--border));
+    transition: var(--transition-smooth);
+  }
+
+  .glass-card {
+    background: var(--gradient-glass);
+    backdrop-filter: blur(12px);
+    border: 1px solid hsl(var(--border) / 0.5);
+    box-shadow: var(--shadow-floating);
+  }
+
+  /* Status indicators */
+  .status-success {
+    @apply bg-accent/10 text-accent border border-accent/20;
+  }
+
+  .status-error {
+    @apply bg-destructive/10 text-destructive border border-destructive/20;
+  }
+
+  .status-warning {
+    @apply bg-yellow-500/10 text-yellow-600 border border-yellow-500/20;
+  }
+
+  .status-pending {
+    @apply bg-orange-500/10 text-orange-600 border border-orange-500/20;
+  }
+
+  /* Interactive elements */
+  .interactive-button {
+    background: var(--gradient-primary);
+    box-shadow: var(--shadow-elegant);
+    transition: var(--transition-bounce);
+  }
+
+  /* Floating animation */
+  .floating {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  /* add to your global CSS file */
+  @keyframes progress-shrink {
+    from {
+      transform: scaleX(1);
+    }
+    to {
+      transform: scaleX(0);
+    }
+  }
+
+  .animate-progress {
+    transform-origin: left;
+    animation-name: progress-shrink;
+    animation-timing-function: linear;
+    animation-fill-mode: forwards;
+    /* animation-duration set inline via style in component */
+  }
+
+  /* optional: pause progress on hover (improves readability) */
+  [class*="professional-card"] :where(.group:hover) .animate-progress,
+  .ToastPrimitivesRoot:hover .animate-progress {
+    animation-play-state: paused;
+  }
+
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+
+  /* Pulse animation for loading */
+  .pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-glow {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 hsl(var(--primary) / 0.4);
+    }
+    50% {
+      box-shadow: 0 0 0 10px hsl(var(--primary) / 0);
+    }
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  /* Professional data table */
+  .data-table {
+    @apply professional-card overflow-hidden;
+  }
+
+  .data-table th {
+    @apply bg-muted/50 font-semibold text-muted-foreground;
+  }
+}
