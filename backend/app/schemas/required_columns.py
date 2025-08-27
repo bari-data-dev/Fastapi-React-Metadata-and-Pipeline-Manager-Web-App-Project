@@ -7,6 +7,9 @@ class RequiredColumnBase(BaseModel):
     client_id: int
     column_name: str
     logical_source_file: Optional[str] = None
+    is_active: Optional[bool] = True   
+    source_system: Optional[str] = None
+    source_type: Optional[str] = None
 
 
 class RequiredColumnCreate(RequiredColumnBase):
@@ -21,3 +24,6 @@ class RequiredColumnUpdate(BaseModel):
     client_id: Optional[int] = None
     column_name: Optional[str] = None
     logical_source_file: Optional[str] = None
+    is_active: Optional[bool] = True   
+    source_system: Optional[str] = None
+    source_type: Optional[str] = None

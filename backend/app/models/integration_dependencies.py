@@ -16,3 +16,4 @@ class IntegrationDependency(SQLModel, table=True):
     )
     fact_proc_name: str = Field(index=True)
     dim_proc_name: str = Field(index=True)
+    is_active: Optional[bool] = True

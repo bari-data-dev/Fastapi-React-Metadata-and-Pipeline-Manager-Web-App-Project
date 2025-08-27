@@ -10,24 +10,23 @@ class FileAuditLog(SQLModel, table=True):
     __tablename__: ClassVar[str] = "file_audit_log"
     __table_args__: ClassVar[Dict] = {"schema": SCHEMA}
 
-    file_audit_id: int = Field(primary_key=True)
+    file_audit_id: Optional[int] = Field(default=None, primary_key=True)
     client_id: int = Field(
-        foreign_key=f"{SCHEMA}.client_reference.client_id", index=True
+        foreign_key=f"{SCHEMA}.client_reference.client_id", index=True, nullable=False
     )
-    convert_status: Optional[str] = None
-    mapping_validation_status: Optional[str] = None
-    row_validation_status: Optional[str] = None
-    load_status: Optional[str] = None
+    convert_status: Optional[str] = Field(default=None, max_length=20)
+    mapping_validation_status: Optional[str] = Field(default=None, max_length=20)
+    row_validation_status: Optional[str] = Field(default=None, max_length=20)
+    load_status: Optional[str] = Field(default=None, max_length=20)
+    config_validation_status: Optional[str] = Field(default=None, max_length=20)
     total_rows: Optional[int] = None
-    valid_rows: Optional[int] = None
-    invalid_rows: Optional[int] = None
-    processed_by: Optional[str] = None
-    logical_source_file: Optional[str] = None
-    physical_file_name: Optional[str] = None
-    parquet_file_name: Optional[str] = None
-    batch_id: Optional[str] = None
+    processed_by: Optional[str] = Field(default=None, max_length=100)
+    logical_source_file: Optional[str] = Field(default=None, max_length=100)
+    physical_file_name: Optional[str] = Field(default=None, max_length=200)
+    batch_id: Optional[str] = Field(default=None, max_length=30)
     file_received_time: Optional[datetime] = None
-    parquet_converted_time: Optional[datetime] = None
+    source_type: Optional[str] = Field(default=None, max_length=20)
+    source_system: Optional[str] = Field(default=None, max_length=20)
 
 
 class MappingValidationLog(SQLModel, table=True):
@@ -57,7 +56,6 @@ class RowValidationLog(SQLModel, table=True):
     )
     file_name: Optional[str] = None
     column_name: Optional[str] = None
-    row_number: Optional[int] = None
     error_type: Optional[str] = None
     error_detail: Optional[str] = None
     batch_id: Optional[str] = None

@@ -2,6 +2,8 @@
 import { useState, useEffect } from "react";
 import { Edit, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DataTable } from "@/components/common/DataTable";
@@ -61,6 +63,9 @@ const MappingPage = () => {
     source_column: "",
     target_column: "",
     logical_source_file: "",
+    source_type: "",
+    source_system: "",
+    is_active: true,
   });
 
   // delete dialog
@@ -117,6 +122,9 @@ const MappingPage = () => {
       source_column: m.source_column,
       target_column: m.target_column,
       logical_source_file: m.logical_source_file ?? "",
+      source_type: (m as any).source_type ?? "",
+      source_system: (m as any).source_system ?? "",
+      is_active: (m as any).is_active ?? true,
     });
     setIsEditOpen(true);
   };
@@ -128,7 +136,8 @@ const MappingPage = () => {
     if (
       !editForm.client_id ||
       !editForm.source_column ||
-      !editForm.target_column
+      !editForm.target_column ||
+      !editForm.logical_source_file
     ) {
       toast({
         title: "Validation Error",
@@ -145,6 +154,9 @@ const MappingPage = () => {
         source_column: editForm.source_column,
         target_column: editForm.target_column,
         logical_source_file: editForm.logical_source_file || undefined,
+        source_type: editForm.source_type || undefined,
+        source_system: editForm.source_system || undefined,
+        is_active: editForm.is_active,
       };
       await columnMappingApi.update(editing.mapping_id, payload);
       toast({ title: "Success", description: "Mapping updated" });
@@ -245,6 +257,44 @@ const MappingPage = () => {
     }
   };
 
+  // Toggle active/inactive with optimistic UI update
+  const handleToggleActive = async (m: ColumnMapping) => {
+    // optimistic update
+    setMappings((prev) =>
+      prev.map((item) =>
+        item.mapping_id === m.mapping_id
+          ? { ...item, is_active: !((item as any).is_active ?? true) }
+          : item
+      )
+    );
+    try {
+      await columnMappingApi.update(m.mapping_id, {
+        is_active: !((m as any).is_active ?? true),
+      });
+      toast({
+        title: "Success",
+        description: `Mapping ${
+          !((m as any).is_active ?? true) ? "activated" : "deactivated"
+        } successfully`,
+      });
+    } catch (err) {
+      // revert on error
+      setMappings((prev) =>
+        prev.map((item) =>
+          item.mapping_id === m.mapping_id
+            ? { ...item, is_active: (m as any).is_active }
+            : item
+        )
+      );
+      console.error("toggle active error", err);
+      toast({
+        title: "Error",
+        description: "Failed to update mapping status",
+        variant: "destructive",
+      });
+    }
+  };
+
   // apply client and logical source file client-side filter (server already filtered by clientId when loaded)
   const logicalFilter =
     (filters as any).logicalSourceFile?.toString().trim().toLowerCase() || "";
@@ -266,10 +316,36 @@ const MappingPage = () => {
     { key: "client_schema", label: "Client Schema", sortable: true },
     { key: "source_column", label: "Source Column", sortable: true },
     { key: "target_column", label: "Target Column", sortable: true },
+    { key: "source_type", label: "Source Type", sortable: true },
+    { key: "source_system", label: "Source System", sortable: true },
     {
       key: "logical_source_file",
       label: "Logical Source File",
       sortable: true,
+    },
+    {
+      key: "is_active",
+      label: "Status",
+      sortable: true,
+      render: (_: any, row: ColumnMapping & { client_schema?: string }) => (
+        <div className="flex items-center gap-3">
+          <Badge
+            variant={(row as any).is_active ?? true ? "default" : "secondary"}
+            className={
+              (row as any).is_active ?? true
+                ? "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800"
+                : "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800"
+            }
+          >
+            {(row as any).is_active ?? true ? "Active" : "Inactive"}
+          </Badge>
+
+          <Switch
+            checked={!!((row as any).is_active ?? true)}
+            onCheckedChange={() => handleToggleActive(row)}
+          />
+        </div>
+      ),
     },
     {
       key: "actions",
@@ -314,6 +390,26 @@ const MappingPage = () => {
       placeholder: "fname",
     },
     {
+      name: "source_type",
+      label: "Source Type",
+      type: "text" as const,
+      required: false,
+      placeholder: "csv",
+    },
+    {
+      name: "source_system",
+      label: "Source System",
+      type: "text" as const,
+      required: false,
+      placeholder: "system_x",
+    },
+    {
+      name: "is_active",
+      label: "Active",
+      type: "switch" as const,
+      required: false,
+    },
+    {
       name: "logical_source_file",
       label: "Source File",
       type: "text" as const,
@@ -323,7 +419,7 @@ const MappingPage = () => {
   ];
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="h-full w-full p-6 space-y-6 flex flex-col overflow-auto">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Column Mapping</h1>
         <p className="text-muted-foreground">
@@ -402,6 +498,32 @@ const MappingPage = () => {
               </div>
 
               <div className="space-y-2">
+                <Label>Source Type</Label>
+                <Input
+                  value={editForm.source_type}
+                  onChange={(e) =>
+                    setEditForm((prev) => ({
+                      ...prev,
+                      source_type: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Source System</Label>
+                <Input
+                  value={editForm.source_system}
+                  onChange={(e) =>
+                    setEditForm((prev) => ({
+                      ...prev,
+                      source_system: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
                 <Label>Logical Source File</Label>
                 <Input
                   value={editForm.logical_source_file}
@@ -416,17 +538,32 @@ const MappingPage = () => {
               </div>
             </div>
 
-            <div className="flex justify-end space-x-2 pt-4">
-              <Button
-                variant="outline"
-                type="button"
-                onClick={() => setIsEditOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" className="interactive-button">
-                Save
-              </Button>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <Label>Active</Label>
+                <Switch
+                  checked={!!editForm.is_active}
+                  onCheckedChange={(val) =>
+                    setEditForm((prev) => ({ ...prev, is_active: !!val }))
+                  }
+                />
+                <span className="ml-2 text-sm text-muted-foreground">
+                  {editForm.is_active ? "Active" : "Inactive"}
+                </span>
+              </div>
+
+              <div className="flex justify-end space-x-2 pt-4">
+                <Button
+                  variant="outline"
+                  type="button"
+                  onClick={() => setIsEditOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" className="interactive-button">
+                  Save
+                </Button>
+              </div>
             </div>
           </form>
         </DialogContent>
@@ -481,8 +618,8 @@ const MappingPage = () => {
         className="space-y-6"
       >
         <TabsList>
-          <TabsTrigger value="view">View Mappings</TabsTrigger>
-          <TabsTrigger value="batch">Batch Add</TabsTrigger>
+          <TabsTrigger value="view">View</TabsTrigger>
+          <TabsTrigger value="batch">New</TabsTrigger>
         </TabsList>
 
         <TabsContent value="view" className="space-y-6">
@@ -511,7 +648,7 @@ const MappingPage = () => {
 
         <TabsContent value="batch" className="space-y-6">
           <BatchEditMetadata
-            title="Column Mappings"
+            title=""
             fields={batchFields}
             initialData={[]}
             fieldOptions={{ client_id: { options: clientOptions } }}

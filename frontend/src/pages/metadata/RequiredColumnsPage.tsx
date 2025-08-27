@@ -2,6 +2,8 @@
 import { useState, useEffect } from "react";
 import { Edit, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DataTable } from "@/components/common/DataTable";
@@ -60,6 +62,9 @@ const RequiredColumnsPage = () => {
     client_id: 0,
     column_name: "",
     logical_source_file: "",
+    source_type: "",
+    source_system: "",
+    is_active: true,
   });
 
   // delete dialog state
@@ -116,6 +121,9 @@ const RequiredColumnsPage = () => {
       client_id: r.client_id,
       column_name: r.column_name,
       logical_source_file: r.logical_source_file ?? "",
+      source_type: (r as any).source_type ?? "",
+      source_system: (r as any).source_system ?? "",
+      is_active: (r as any).is_active ?? true,
     });
     setIsEditOpen(true);
   };
@@ -139,6 +147,9 @@ const RequiredColumnsPage = () => {
         client_id: editForm.client_id,
         column_name: editForm.column_name,
         logical_source_file: editForm.logical_source_file || undefined,
+        source_type: editForm.source_type || undefined,
+        source_system: editForm.source_system || undefined,
+        is_active: editForm.is_active,
       };
       await requiredColumnApi.update(editing.required_id, payload);
       toast({ title: "Success", description: "Required column updated" });
@@ -239,6 +250,44 @@ const RequiredColumnsPage = () => {
     }
   };
 
+  // Toggle active/inactive with optimistic UI update
+  const handleToggleActive = async (r: RequiredColumn) => {
+    // optimistic update
+    setRequiredColumns((prev) =>
+      prev.map((item) =>
+        item.required_id === r.required_id
+          ? { ...item, is_active: !((item as any).is_active ?? true) }
+          : item
+      )
+    );
+    try {
+      await requiredColumnApi.update(r.required_id, {
+        is_active: !((r as any).is_active ?? true),
+      });
+      toast({
+        title: "Success",
+        description: `Required column ${
+          !((r as any).is_active ?? true) ? "activated" : "deactivated"
+        } successfully`,
+      });
+    } catch (err) {
+      // revert on error
+      setRequiredColumns((prev) =>
+        prev.map((item) =>
+          item.required_id === r.required_id
+            ? { ...item, is_active: (r as any).is_active }
+            : item
+        )
+      );
+      console.error("toggle active error", err);
+      toast({
+        title: "Error",
+        description: "Failed to update required column status",
+        variant: "destructive",
+      });
+    }
+  };
+
   // client-side filtering for logical_source_file (server already filtered by clientId when loaded)
   const logicalFilter =
     (filters as any).logicalSourceFile?.toString().trim().toLowerCase() || "";
@@ -258,10 +307,36 @@ const RequiredColumnsPage = () => {
   const columns = [
     { key: "client_schema", label: "Client Schema", sortable: true },
     { key: "column_name", label: "Column Name", sortable: true },
+    { key: "source_type", label: "Source Type", sortable: true },
+    { key: "source_system", label: "Source System", sortable: true },
     {
       key: "logical_source_file",
       label: "Logical Source File",
       sortable: true,
+    },
+    {
+      key: "is_active",
+      label: "Status",
+      sortable: true,
+      render: (_: any, row: RequiredColumn & { client_schema?: string }) => (
+        <div className="flex items-center gap-3">
+          <Badge
+            variant={(row as any).is_active ?? true ? "default" : "secondary"}
+            className={
+              (row as any).is_active ?? true
+                ? "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800"
+                : "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800"
+            }
+          >
+            {(row as any).is_active ?? true ? "Active" : "Inactive"}
+          </Badge>
+
+          <Switch
+            checked={!!((row as any).is_active ?? true)}
+            onCheckedChange={() => handleToggleActive(row)}
+          />
+        </div>
+      ),
     },
     {
       key: "actions",
@@ -299,6 +374,26 @@ const RequiredColumnsPage = () => {
       placeholder: "email",
     },
     {
+      name: "source_type",
+      label: "Source Type",
+      type: "text" as const,
+      required: false,
+      placeholder: "csv",
+    },
+    {
+      name: "source_system",
+      label: "Source System",
+      type: "text" as const,
+      required: false,
+      placeholder: "system_x",
+    },
+    {
+      name: "is_active",
+      label: "Active",
+      type: "switch" as const,
+      required: false,
+    },
+    {
       name: "logical_source_file",
       label: "Source File",
       type: "text" as const,
@@ -308,7 +403,7 @@ const RequiredColumnsPage = () => {
   ];
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="h-full w-full p-6 space-y-6 flex flex-col overflow-auto">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Required Columns</h1>
         <p className="text-muted-foreground">
@@ -375,6 +470,32 @@ const RequiredColumnsPage = () => {
               </div>
 
               <div className="space-y-2">
+                <Label>Source Type</Label>
+                <Input
+                  value={editForm.source_type}
+                  onChange={(e) =>
+                    setEditForm((prev) => ({
+                      ...prev,
+                      source_type: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Source System</Label>
+                <Input
+                  value={editForm.source_system}
+                  onChange={(e) =>
+                    setEditForm((prev) => ({
+                      ...prev,
+                      source_system: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
                 <Label>Logical Source File</Label>
                 <Input
                   value={editForm.logical_source_file}
@@ -389,17 +510,32 @@ const RequiredColumnsPage = () => {
               </div>
             </div>
 
-            <div className="flex justify-end space-x-2 pt-4">
-              <Button
-                variant="outline"
-                type="button"
-                onClick={() => setIsEditOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" className="interactive-button">
-                Save
-              </Button>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <Label>Active</Label>
+                <Switch
+                  checked={!!editForm.is_active}
+                  onCheckedChange={(val) =>
+                    setEditForm((prev) => ({ ...prev, is_active: !!val }))
+                  }
+                />
+                <span className="ml-2 text-sm text-muted-foreground">
+                  {editForm.is_active ? "Active" : "Inactive"}
+                </span>
+              </div>
+
+              <div className="flex justify-end space-x-2 pt-4">
+                <Button
+                  variant="outline"
+                  type="button"
+                  onClick={() => setIsEditOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" className="interactive-button">
+                  Save
+                </Button>
+              </div>
             </div>
           </form>
         </DialogContent>
@@ -454,8 +590,8 @@ const RequiredColumnsPage = () => {
         className="space-y-6"
       >
         <TabsList>
-          <TabsTrigger value="view">View Required Columns</TabsTrigger>
-          <TabsTrigger value="batch">Batch Add</TabsTrigger>
+          <TabsTrigger value="view">View</TabsTrigger>
+          <TabsTrigger value="batch">New</TabsTrigger>
         </TabsList>
 
         <TabsContent value="view" className="space-y-6">
@@ -483,7 +619,7 @@ const RequiredColumnsPage = () => {
 
         <TabsContent value="batch" className="space-y-6">
           <BatchEditMetadata
-            title="Required Columns"
+            title=""
             fields={batchFields}
             initialData={[]}
             fieldOptions={{ client_id: { options: clientOptions } }}

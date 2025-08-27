@@ -75,6 +75,7 @@ const ConfigPage = () => {
   const [editForm, setEditForm] = useState({
     client_id: 0,
     source_type: "",
+    source_system: "",
     target_schema: "",
     target_table: "",
     source_config: "",
@@ -138,6 +139,7 @@ const ConfigPage = () => {
     setEditForm({
       client_id: cfg.client_id,
       source_type: cfg.source_type,
+      source_system: (cfg as any).source_system ?? "",
       target_schema: cfg.target_schema,
       target_table: cfg.target_table,
       source_config: cfg.source_config
@@ -187,6 +189,7 @@ const ConfigPage = () => {
       const payload: Partial<Omit<ClientConfig, "config_id">> = {
         client_id: editForm.client_id,
         source_type: editForm.source_type,
+        source_system: editForm.source_system || undefined,
         target_schema: editForm.target_schema,
         target_table: editForm.target_table,
         source_config: parsedSourceConfig,
@@ -360,6 +363,7 @@ const ConfigPage = () => {
   const columns = [
     { key: "client_schema", label: "Client Schema", sortable: true },
     { key: "source_type", label: "Source Type", sortable: true },
+    { key: "source_system", label: "Source System", sortable: true },
     { key: "target_schema", label: "Target Schema", sortable: true },
     { key: "target_table", label: "Target Table", sortable: true },
     {
@@ -425,7 +429,7 @@ const ConfigPage = () => {
   ];
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="h-full w-full p-6 space-y-6 flex flex-col overflow-auto">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
@@ -494,6 +498,20 @@ const ConfigPage = () => {
                     }))
                   }
                   required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Source System</Label>
+                <Input
+                  value={editForm.source_system}
+                  onChange={(e) =>
+                    setEditForm((prev) => ({
+                      ...prev,
+                      source_system: e.target.value,
+                    }))
+                  }
+                  placeholder="system_x"
                 />
               </div>
 
@@ -638,8 +656,8 @@ const ConfigPage = () => {
         className="space-y-6"
       >
         <TabsList>
-          <TabsTrigger value="view">View Configs</TabsTrigger>
-          <TabsTrigger value="batch">Add Batch</TabsTrigger>
+          <TabsTrigger value="view">View</TabsTrigger>
+          <TabsTrigger value="batch">New</TabsTrigger>
         </TabsList>
 
         <TabsContent value="view" className="space-y-6">
@@ -666,7 +684,7 @@ const ConfigPage = () => {
 
         <TabsContent value="batch" className="space-y-6">
           <BatchEditMetadata
-            title="Add Configs (Batch)"
+            title=""
             fields={[
               {
                 name: "client_id",
@@ -681,6 +699,13 @@ const ConfigPage = () => {
                 type: "text",
                 required: true,
                 placeholder: "csv",
+              },
+              {
+                name: "source_system",
+                label: "Source System",
+                type: "text",
+                required: false,
+                placeholder: "system_x",
               },
               {
                 name: "target_schema",

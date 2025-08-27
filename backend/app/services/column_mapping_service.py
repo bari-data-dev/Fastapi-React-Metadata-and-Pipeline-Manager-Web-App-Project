@@ -71,8 +71,26 @@ def batch_add(db: Session, payloads: List[ColumnMappingCreate]) -> List[ColumnMa
 def update(db: Session, mapping_id: int, payload: ColumnMappingUpdate) -> ColumnMapping:
     obj = get_by_id(db, mapping_id)
     data = payload.dict(exclude_unset=True)
+
+    if "client_id" in data and not data.get("client_id"):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="client_id cannot be empty",
+        )
+    if "source_column" in data and not data.get("source_column"):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="source_column cannot be empty",
+        )
+    if "target_column" in data and not data.get("target_column"):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="target_column cannot be empty",
+        )
+
     for k, v in data.items():
         setattr(obj, k, v)
+
     db.add(obj)
     db.commit()
     db.refresh(obj)

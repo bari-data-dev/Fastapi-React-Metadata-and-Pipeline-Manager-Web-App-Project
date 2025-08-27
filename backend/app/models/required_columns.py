@@ -11,9 +11,11 @@ class RequiredColumn(SQLModel, table=True):
     __table_args__: ClassVar[Dict] = {"schema": SCHEMA}
 
     required_id: Optional[int] = Field(default=None, primary_key=True)
-    # include schema in foreign_key so SQLAlchemy can resolve the referenced table
     client_id: int = Field(
         foreign_key=f"{SCHEMA}.client_reference.client_id", index=True
     )
     column_name: str = Field(index=True)
+    is_active: Optional[bool] = True
     logical_source_file: Optional[str] = None
+    source_type: str = Field(nullable=False, max_length=20)
+    source_system: str = Field(nullable=False, max_length=20)

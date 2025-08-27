@@ -3,12 +3,6 @@ export interface ClientReference {
   client_id: number;
   client_schema: string;
   client_name: string;
-  // versi dihapus dari tipe frontend
-  // config_version?: string;
-  // mapping_version?: string;
-  // required_column_version?: string;
-
-  // last_batch_id sekarang optional karena tidak selalu diset
   last_batch_id?: string;
 }
 
@@ -16,12 +10,12 @@ export interface ClientConfig {
   config_id: number;
   client_id: number;
   source_type: string;
+  source_system: string;
   target_schema: string;
   target_table: string;
-  source_config?: any;
+  source_config?: Record<string, any> | null;
   is_active?: boolean;
-  //config_version?: string;
-  logical_source_file?: string;
+  logical_source_file: string;
 }
 
 export interface ColumnMapping {
@@ -29,7 +23,9 @@ export interface ColumnMapping {
   client_id: number;
   source_column: string;
   target_column: string;
-  //mapping_version: string;
+  source_type: string;
+  source_system: string;
+  is_active?: boolean;
   logical_source_file: string;
 }
 
@@ -37,7 +33,9 @@ export interface RequiredColumn {
   required_id: number;
   client_id: number;
   column_name: string;
-  //required_column_version: string;
+  source_type: string;
+  source_system: string;
+  is_active?: boolean;
   logical_source_file: string;
 }
 
@@ -66,19 +64,18 @@ export interface IntegrationDependency {
   client_id: number;
   fact_proc_name: string;
   dim_proc_name: string;
+  is_active?: boolean;
 }
 
 export interface MvRefreshConfig {
   mv_id: number;
   client_id: number;
   mv_proc_name: string;
-  is_active: boolean;
+  is_active?: boolean;
   refresh_mode?: string;
   created_at?: string;
   created_by?: string;
 }
-
-
 
 export interface FileAuditLog {
   file_audit_id: number;
@@ -87,9 +84,8 @@ export interface FileAuditLog {
   mapping_validation_status?: string;
   row_validation_status?: string;
   load_status?: string;
+  config_validation_status?: string;
   total_rows?: number;
-  valid_rows?: number;
-  invalid_rows?: number;
   processed_by?: string;
   logical_source_file?: string;
   physical_file_name?: string;
@@ -97,6 +93,8 @@ export interface FileAuditLog {
   batch_id?: string;
   file_received_time?: string;
   parquet_converted_time?: string;
+  source_type?: string;
+  source_system?: string;
 }
 
 export interface MappingValidationLog {
@@ -116,7 +114,6 @@ export interface RowValidationLog {
   client_id?: number;
   file_name?: string;
   column_name?: string;
-  row_number?: number;
   error_type?: string;
   error_detail?: string;
   batch_id?: string;
@@ -187,7 +184,6 @@ export interface ApiResponse<T> {
   message?: string;
   success: boolean;
 }
-
 
 // Filter types
 export interface FilterOptions {

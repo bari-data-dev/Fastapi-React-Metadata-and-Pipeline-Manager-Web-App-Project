@@ -13,5 +13,4 @@ class ClientReference(SQLModel, table=True):
     client_id: Optional[int] = Field(default=None, primary_key=True)
     client_schema: str = Field(index=True)
     client_name: str
-    # versi dihapus dari model sesuai request
     last_batch_id: Optional[str] = None

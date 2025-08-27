@@ -193,7 +193,7 @@ const LoadErrorsPage = () => {
   }, {} as Record<string, number>);
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="h-full w-full p-6 space-y-6 flex flex-col overflow-auto">
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Load Error Logs</h1>

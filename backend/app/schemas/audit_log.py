@@ -6,20 +6,21 @@ from sqlmodel import SQLModel
 class FileAuditLogRead(SQLModel):
     file_audit_id: int
     client_id: int
-    convert_status: Optional[str]
-    mapping_validation_status: Optional[str]
-    row_validation_status: Optional[str]
-    load_status: Optional[str]
-    total_rows: Optional[int]
-    valid_rows: Optional[int]
-    invalid_rows: Optional[int]
-    processed_by: Optional[str]
-    logical_source_file: Optional[str]
-    physical_file_name: Optional[str]
-    parquet_file_name: Optional[str]
-    batch_id: Optional[str]
-    file_received_time: Optional[datetime]
-    parquet_converted_time: Optional[datetime]
+    convert_status: Optional[str] = None
+    mapping_validation_status: Optional[str] = None
+    row_validation_status: Optional[str] = None
+    load_status: Optional[str] = None
+    config_validation_status: Optional[str] = None
+    total_rows: Optional[int] = None
+    processed_by: Optional[str] = None
+    logical_source_file: Optional[str] = None
+    physical_file_name: Optional[str] = None
+    parquet_file_name: Optional[str] = None
+    batch_id: Optional[str] = None
+    file_received_time: Optional[datetime] = None
+    parquet_converted_time: Optional[datetime] = None
+    source_type: Optional[str] = None
+    source_system: Optional[str] = None
 
 
 class MappingValidationLogRead(SQLModel):
@@ -39,7 +40,6 @@ class RowValidationLogRead(SQLModel):
     client_id: int
     file_name: Optional[str]
     column_name: Optional[str]
-    row_number: Optional[int]
     error_type: Optional[str]
     error_detail: Optional[str]
     batch_id: Optional[str]

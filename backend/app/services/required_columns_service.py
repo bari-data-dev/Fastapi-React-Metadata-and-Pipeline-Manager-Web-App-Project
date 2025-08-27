@@ -68,8 +68,21 @@ def update(
 ) -> RequiredColumn:
     obj = get_by_id(db, required_id)
     data = payload.dict(exclude_unset=True)
+
+    if "client_id" in data and not data.get("client_id"):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="client_id cannot be empty",
+        )
+    if "column_name" in data and not data.get("column_name"):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="column_name cannot be empty",
+        )
+
     for k, v in data.items():
         setattr(obj, k, v)
+
     db.add(obj)
     db.commit()
     db.refresh(obj)

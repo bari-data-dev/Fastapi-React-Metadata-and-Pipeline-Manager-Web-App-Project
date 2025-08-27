@@ -3,6 +3,8 @@ import { useState, useEffect } from "react";
 import { Edit, Trash2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { DataTable } from "@/components/common/DataTable";
 import { MetadataListFilter } from "@/components/common/MetadataListFilter";
 import { BatchEditMetadata } from "@/components/common/BatchAddMetadata";
@@ -227,6 +229,48 @@ const IntegrationDependenciesPage = () => {
     }
   };
 
+  // Toggle active/inactive with optimistic UI update
+  const handleToggleActive = async (d: IntegrationDependency) => {
+    const original = (d as any).is_active ?? true;
+    const next = !original;
+
+    // optimistic update
+    setDependencies((prev) =>
+      prev.map((item) =>
+        item.dependency_id === d.dependency_id
+          ? { ...item, is_active: next }
+          : item
+      )
+    );
+
+    try {
+      await integrationDependenciesApi.update(d.dependency_id, {
+        is_active: next,
+      });
+      toast({
+        title: "Success",
+        description: `Integration dependency ${
+          next ? "activated" : "deactivated"
+        } successfully`,
+      });
+    } catch (err) {
+      // revert on error
+      setDependencies((prev) =>
+        prev.map((item) =>
+          item.dependency_id === d.dependency_id
+            ? { ...item, is_active: original }
+            : item
+        )
+      );
+      console.error("toggle active error", err);
+      toast({
+        title: "Error",
+        description: "Failed to update integration dependency status",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Batch save callback
   const handleBatchSave = async (rows: any[]) => {
     if (!Array.isArray(rows) || rows.length === 0) {
@@ -299,6 +343,33 @@ const IntegrationDependenciesPage = () => {
     { key: "fact_proc_name", label: "Fact Procedure", sortable: true },
     { key: "dim_proc_name", label: "Dimension Procedure", sortable: true },
     {
+      key: "is_active",
+      label: "Status",
+      sortable: true,
+      render: (
+        _: any,
+        row: IntegrationDependency & { client_schema?: string }
+      ) => (
+        <div className="flex items-center gap-3">
+          <Badge
+            variant={(row as any).is_active ?? true ? "default" : "secondary"}
+            className={
+              (row as any).is_active ?? true
+                ? "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800"
+                : "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800"
+            }
+          >
+            {(row as any).is_active ?? true ? "Active" : "Inactive"}
+          </Badge>
+
+          <Switch
+            checked={!!((row as any).is_active ?? true)}
+            onCheckedChange={() => handleToggleActive(row)}
+          />
+        </div>
+      ),
+    },
+    {
       key: "actions",
       label: "Actions",
       render: (_: any, row: IntegrationDependency) => (
@@ -340,10 +411,16 @@ const IntegrationDependenciesPage = () => {
       required: true,
       placeholder: "load_customer_dim",
     },
+    {
+      name: "is_active",
+      label: "Active",
+      type: "switch" as const,
+      required: false,
+    },
   ];
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="h-full w-full p-6 space-y-6 flex flex-col overflow-auto">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
@@ -442,7 +519,7 @@ const IntegrationDependenciesPage = () => {
         >
           <TabsList>
             <TabsTrigger value="view">View</TabsTrigger>
-            <TabsTrigger value="batch">Batch Add</TabsTrigger>
+            <TabsTrigger value="batch">New</TabsTrigger>
           </TabsList>
 
           <TabsContent value="view" className="space-y-6">
@@ -468,7 +545,7 @@ const IntegrationDependenciesPage = () => {
 
           <TabsContent value="batch" className="space-y-6">
             <BatchEditMetadata
-              title="Integration Dependencies (Batch)"
+              title=""
               fields={batchFields}
               initialData={[]}
               fieldOptions={{ client_id: { options: clientOptions } }}
@@ -491,7 +568,7 @@ const IntegrationDependenciesPage = () => {
           setDeleteOpen(open);
         }}
       >
-        <DialogContent className="sm:max-w-sm bg-background">
+        <DialogContent className="sm-max-w-sm bg-background">
           <DialogHeader>
             <DialogTitle>Delete Integration Dependency</DialogTitle>
           </DialogHeader>
