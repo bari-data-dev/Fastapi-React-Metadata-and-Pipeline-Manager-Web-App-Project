@@ -159,13 +159,13 @@ const TransformationLogsPage = () => {
     { key: "client_schema", label: "Client", sortable: true },
     { key: "source_table", label: "Source Table", sortable: true },
     { key: "target_table", label: "Target Table", sortable: true },
-    { key: "status", label: "Status", sortable: true },
     {
       key: "record_count",
       label: "Records",
       sortable: true,
       render: (value: number) => value?.toLocaleString() || "-",
     },
+    { key: "status", label: "Status", sortable: true },
     {
       key: "message",
       label: "Message",

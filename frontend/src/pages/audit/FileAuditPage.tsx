@@ -1,11 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/common/DataTable";
 import { MetadataListFilter } from "@/components/common/MetadataListFilter";
 import { Progress } from "@/components/ui/progress";
@@ -169,11 +163,16 @@ const FileAuditPage = () => {
 
   // columns: show client_schema instead of numeric client_id
   const columns = [
-    { key: "client_schema", label: "Client Schema", sortable: true },
-    { key: "logical_source_file", label: "Source File", sortable: true },
+    { key: "client_schema", label: "Client", sortable: true },
+    //{ key: "logical_source_file", label: "Source File", sortable: true },
     { key: "physical_file_name", label: "Physical File", sortable: true },
-    { key: "source_type", label: "Source Type", sortable: true },
-    { key: "source_system", label: "Source System", sortable: true },
+    { key: "config_validation_status", label: "Config", sortable: true },
+    { key: "convert_status", label: "Convert", sortable: true },
+    { key: "mapping_validation_status", label: "Mapping", sortable: true },
+    { key: "row_validation_status", label: "Validation", sortable: true },
+    { key: "load_status", label: "Load", sortable: true },
+    { key: "source_type", label: "Type", sortable: true },
+    { key: "source_system", label: "System", sortable: true },
     {
       key: "total_rows",
       label: "Records",
@@ -193,15 +192,10 @@ const FileAuditPage = () => {
         );
       },
     },
-    { key: "convert_status", label: "Convert", sortable: true },
-    { key: "mapping_validation_status", label: "Mapping", sortable: true },
-    { key: "row_validation_status", label: "Validation", sortable: true },
-    { key: "config_validation_status", label: "Config", sortable: true },
-    { key: "load_status", label: "Load", sortable: true },
-    { key: "processed_by", label: "Processed By", sortable: true },
-    { key: "file_received_time", label: "Received", sortable: true },
-    { key: "parquet_converted_time", label: "Converted", sortable: true },
     { key: "batch_id", label: "Batch ID", sortable: true },
+    { key: "file_received_time", label: "Received", sortable: true },
+    { key: "processed_by", label: "Processed By", sortable: true },
+    
   ];
 
   // data mapping: include client_schema for display

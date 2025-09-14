@@ -2,7 +2,13 @@ import React, { useEffect, useMemo, useState } from "react";
 import { DataTable } from "@/components/common/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { MetadataListFilter } from "@/components/common/MetadataListFilter";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { integrationLogApi, clientReferenceApi } from "@/utils/api";
 import { useToast } from "@/hooks/use-toast";
 import type { IntegrationLog, FilterOptions } from "@/types";
@@ -11,7 +17,8 @@ import type { IntegrationLog, FilterOptions } from "@/types";
 function normalizeOptions(opts: { value?: string | number; label?: string }[]) {
   return (opts || [])
     .map((o) => {
-      const value = o.value === undefined || o.value === null ? "" : String(o.value);
+      const value =
+        o.value === undefined || o.value === null ? "" : String(o.value);
       const label = (o.label ?? "").toString();
       return { value, label };
     })
@@ -21,9 +28,16 @@ function normalizeOptions(opts: { value?: string | number; label?: string }[]) {
 /** Simple status -> class mapping for Badge (kept inline so tidak tergantung mockData) */
 function getStatusColor(status: string) {
   const s = (status ?? "").toString().toLowerCase();
-  if (s.includes("success") || s.includes("completed") || s.includes("ok")) return "bg-green-100 text-green-800";
-  if (s.includes("fail") || s.includes("error") || s.includes("failed")) return "bg-red-100 text-red-800";
-  if (s.includes("running") || s.includes("in_progress") || s.includes("processing")) return "bg-blue-100 text-blue-800";
+  if (s.includes("success") || s.includes("completed") || s.includes("ok"))
+    return "bg-green-100 text-green-800";
+  if (s.includes("fail") || s.includes("error") || s.includes("failed"))
+    return "bg-red-100 text-red-800";
+  if (
+    s.includes("running") ||
+    s.includes("in_progress") ||
+    s.includes("processing")
+  )
+    return "bg-blue-100 text-blue-800";
   return "bg-gray-100 text-gray-800";
 }
 
@@ -38,7 +52,9 @@ const IntegrationLogsPage: React.FC = () => {
 
   // client refs for mapping + select options (loaded once)
   const [clientMap, setClientMap] = useState<Record<number, string>>({});
-  const [clientOptions, setClientOptions] = useState<{ value: string; label: string }[]>([]);
+  const [clientOptions, setClientOptions] = useState<
+    { value: string; label: string }[]
+  >([]);
 
   // batch suggestions derived from full log list for the selected client (or all clients)
   const [batchOptions, setBatchOptions] = useState<string[]>([]);
@@ -55,7 +71,8 @@ const IntegrationLogsPage: React.FC = () => {
         const optsRaw: { value: string; label: string }[] = [];
         (clientsResp?.data ?? []).forEach((c: any) => {
           if (typeof c.client_id === "number") {
-            const label = c.client_schema ?? c.client_name ?? String(c.client_id);
+            const label =
+              c.client_schema ?? c.client_name ?? String(c.client_id);
             map[c.client_id] = label;
             optsRaw.push({ value: String(c.client_id), label });
           }
@@ -81,7 +98,10 @@ const IntegrationLogsPage: React.FC = () => {
   const loadLogs = async () => {
     try {
       setLoading(true);
-      const resp = await integrationLogApi.getAll(filters.clientId, filters.batchId);
+      const resp = await integrationLogApi.getAll(
+        filters.clientId,
+        filters.batchId
+      );
       setLogs(resp?.data ?? []);
     } catch (err) {
       console.error("load integration logs error", err);
@@ -101,7 +121,9 @@ const IntegrationLogsPage: React.FC = () => {
   const loadBatchOptions = async (clientId?: number) => {
     try {
       const resp = await integrationLogApi.getAll(clientId, undefined);
-      const batches = Array.from(new Set((resp?.data ?? []).map((r) => r.batch_id).filter(Boolean))) as string[];
+      const batches = Array.from(
+        new Set((resp?.data ?? []).map((r) => r.batch_id).filter(Boolean))
+      ) as string[];
       batches.sort((a, b) => a.localeCompare(b));
       setBatchOptions(batches);
     } catch (err) {
@@ -119,7 +141,12 @@ const IntegrationLogsPage: React.FC = () => {
   // helper status checks (same logic as transformation logs)
   const isAllSuccess = (log: IntegrationLog) => {
     const s = (log.status ?? "").toString().toLowerCase();
-    return s === "" || s.includes("success") || s.includes("completed") || s.includes("ok");
+    return (
+      s === "" ||
+      s.includes("success") ||
+      s.includes("completed") ||
+      s.includes("ok")
+    );
   };
 
   const hasAnyFailed = (log: IntegrationLog) => {
@@ -144,7 +171,7 @@ const IntegrationLogsPage: React.FC = () => {
   // columns: keep your original columns but adapt client rendering to show schema/name from clientMap
   const columns = [
     { key: "integration_log_id", label: "Log ID", sortable: true },
-    { key: "client_id", label: "Client ID", sortable: true },
+    //{ key: "client_id", label: "Client ID", sortable: true },
     {
       key: "client_name",
       label: "Client Name",
@@ -153,6 +180,8 @@ const IntegrationLogsPage: React.FC = () => {
         return clientMap[log.client_id] ?? String(log.client_id);
       },
     },
+    { key: "proc_name", label: "Procedure Name", sortable: true },
+    { key: "record_count", label: "Record Count", sortable: true },
     {
       key: "status",
       label: "Status",
@@ -161,18 +190,18 @@ const IntegrationLogsPage: React.FC = () => {
         <Badge className={getStatusColor(log.status || "")}>{log.status}</Badge>
       ),
     },
-    { key: "proc_name", label: "Procedure Name", sortable: true },
+    { key: "message", label: "Message", sortable: false },
     {
       key: "table_type",
       label: "Table Type",
       sortable: true,
-      render: (_: any, log: IntegrationLog) => <Badge variant="outline">{log.table_type}</Badge>,
+      render: (_: any, log: IntegrationLog) => (
+        <Badge variant="outline">{log.table_type}</Badge>
+      ),
     },
-    { key: "record_count", label: "Record Count", sortable: true },
     { key: "batch_id", label: "Batch ID", sortable: true },
     { key: "start_time", label: "Start Time", sortable: true },
     { key: "end_time", label: "End Time", sortable: true },
-    { key: "message", label: "Message", sortable: false },
   ];
 
   // data mapping: include client_schema for display if desired (we already used clientMap)
@@ -182,13 +211,16 @@ const IntegrationLogsPage: React.FC = () => {
   }));
 
   // choose source for aggregation:
-  const sourceForAggregation = processedRows.length > 0 ? processedRows : displayed;
+  const sourceForAggregation =
+    processedRows.length > 0 ? processedRows : displayed;
 
   return (
     <div className="h-full w-full p-6 space-y-6 flex flex-col overflow-auto">
       <div>
         <h1 className="text-3xl font-bold">Integration Logs</h1>
-        <p className="text-muted-foreground">View integration execution logs and status information</p>
+        <p className="text-muted-foreground">
+          View integration execution logs and status information
+        </p>
       </div>
 
       {/* Summary Stats (same buckets as transformation page) */}
@@ -198,7 +230,9 @@ const IntegrationLogsPage: React.FC = () => {
             <CardTitle className="text-sm font-medium">Total Logs</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{sourceForAggregation.length}</div>
+            <div className="text-2xl font-bold">
+              {sourceForAggregation.length}
+            </div>
           </CardContent>
         </Card>
 
@@ -207,7 +241,9 @@ const IntegrationLogsPage: React.FC = () => {
             <CardTitle className="text-sm font-medium">Successful</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{sourceForAggregation.filter((log) => isAllSuccess(log)).length}</div>
+            <div className="text-2xl font-bold text-green-600">
+              {sourceForAggregation.filter((log) => isAllSuccess(log)).length}
+            </div>
           </CardContent>
         </Card>
 
@@ -216,7 +252,9 @@ const IntegrationLogsPage: React.FC = () => {
             <CardTitle className="text-sm font-medium">Failed</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{sourceForAggregation.filter((log) => hasAnyFailed(log)).length}</div>
+            <div className="text-2xl font-bold text-red-600">
+              {sourceForAggregation.filter((log) => hasAnyFailed(log)).length}
+            </div>
           </CardContent>
         </Card>
 
@@ -225,7 +263,11 @@ const IntegrationLogsPage: React.FC = () => {
             <CardTitle className="text-sm font-medium">Records</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{sourceForAggregation.reduce((sum, log) => sum + (log.record_count || 0), 0).toLocaleString()}</div>
+            <div className="text-2xl font-bold">
+              {sourceForAggregation
+                .reduce((sum, log) => sum + (log.record_count || 0), 0)
+                .toLocaleString()}
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -257,7 +299,9 @@ const IntegrationLogsPage: React.FC = () => {
             columns={columns}
             loading={loading}
             searchPlaceholder="Search integration logs..."
-            onProcessedRowsChange={(rows) => setProcessedRows(rows as IntegrationLog[])}
+            onProcessedRowsChange={(rows) =>
+              setProcessedRows(rows as IntegrationLog[])
+            }
           />
         </CardContent>
       </Card>

@@ -346,9 +346,10 @@ const MvRefreshPage = () => {
     });
 
   const columns = [
-    { key: "mv_id", label: "ID", sortable: true },
+    //{ key: "mv_id", label: "ID", sortable: true },
     { key: "client_schema", label: "Client Schema", sortable: true },
     { key: "mv_proc_name", label: "MV Procedure Name", sortable: true },
+    { key: "refresh_mode", label: "Refresh Mode", sortable: true },
     {
       key: "is_active",
       label: "Status",
@@ -372,7 +373,7 @@ const MvRefreshPage = () => {
         </div>
       ),
     },
-    { key: "refresh_mode", label: "Refresh Mode", sortable: true },
+
     { key: "created_by", label: "Created By", sortable: true },
     { key: "created_at", label: "Created At", sortable: true },
     {

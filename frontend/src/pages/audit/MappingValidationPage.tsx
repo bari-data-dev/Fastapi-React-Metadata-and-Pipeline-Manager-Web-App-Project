@@ -156,10 +156,9 @@ const MappingValidationPage = () => {
 
   // columns: show client_schema instead of numeric client_id (columns kept as requested)
   const columns = [
-    { key: "mapping_id", label: "ID", sortable: true },
+    { key: "mapping_id", label: "Error Id", sortable: true },
     { key: "client_schema", label: "Client", sortable: true },
     { key: "file_name", label: "File Name", sortable: true },
-    { key: "batch_id", label: "Batch ID", sortable: true },
     {
       key: "missing_columns",
       label: "Missing Columns",
@@ -216,6 +215,7 @@ const MappingValidationPage = () => {
         );
       },
     },
+    { key: "batch_id", label: "Batch ID", sortable: true },
     { key: "timestamp", label: "Timestamp", sortable: true },
   ];
 

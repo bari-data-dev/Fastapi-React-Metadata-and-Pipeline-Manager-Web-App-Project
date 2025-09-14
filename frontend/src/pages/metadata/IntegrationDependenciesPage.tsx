@@ -338,7 +338,7 @@ const IntegrationDependenciesPage = () => {
     });
 
   const columns = [
-    { key: "dependency_id", label: "ID", sortable: true },
+    //{ key: "dependency_id", label: "ID", sortable: true },
     { key: "client_schema", label: "Client Schema", sortable: true },
     { key: "fact_proc_name", label: "Fact Procedure", sortable: true },
     { key: "dim_proc_name", label: "Dimension Procedure", sortable: true },
