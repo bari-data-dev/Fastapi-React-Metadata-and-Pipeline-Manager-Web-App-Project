@@ -157,6 +157,8 @@
 
   body {
     @apply bg-background text-foreground;
+    overflow-y: scroll; /* selalu ada vertical scrollbar */
+    scrollbar-gutter: stable;
   }
 }
 

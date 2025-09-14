@@ -163,6 +163,7 @@ const JobExecutionPage = () => {
         );
       },
     },
+    { key: "batch_id", label: "Batch ID", sortable: true },
     { key: "start_time", label: "Started", sortable: true },
     { key: "end_time", label: "Completed", sortable: true },
     {
@@ -178,7 +179,7 @@ const JobExecutionPage = () => {
         return `${minutes}m ${seconds}s`;
       },
     },
-    { key: "batch_id", label: "Batch ID", sortable: true },
+    
   ];
 
   // data mapping: include client_schema for display

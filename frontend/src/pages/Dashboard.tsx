@@ -29,7 +29,7 @@ const Dashboard = () => {
     const totalClients = mockClients.length;
     const totalFiles = mockFileAuditLogs.length;
     const totalRecords = mockFileAuditLogs.reduce((sum, log) => sum + (log.total_rows || 0), 0);
-    const validRecords = mockFileAuditLogs.reduce((sum, log) => sum + (log.valid_rows || 0), 0);
+    const validRecords = mockFileAuditLogs.reduce((sum, log) => sum + (log.total_rows || 0), 0);
     const successfulFiles = mockFileAuditLogs.filter(log => log.load_status === 'Loaded').length;
     const successRate = totalFiles > 0 ? (successfulFiles / totalFiles) * 100 : 0;
     const errorRate = totalRecords > 0 ? ((totalRecords - validRecords) / totalRecords) * 100 : 0;

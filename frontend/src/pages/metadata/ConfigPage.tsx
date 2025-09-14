@@ -362,10 +362,10 @@ const ConfigPage = () => {
 
   const columns = [
     { key: "client_schema", label: "Client Schema", sortable: true },
-    { key: "source_type", label: "Source Type", sortable: true },
-    { key: "source_system", label: "Source System", sortable: true },
     { key: "target_schema", label: "Target Schema", sortable: true },
     { key: "target_table", label: "Target Table", sortable: true },
+    { key: "source_type", label: "Source Type", sortable: true },
+    { key: "source_system", label: "Source System", sortable: true },
     {
       key: "logical_source_file",
       label: "Logical Source File",

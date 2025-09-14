@@ -143,7 +143,7 @@ const LoadErrorsPage = () => {
     { key: "error_id", label: "Error ID", sortable: true },
     { key: "client_schema", label: "Client", sortable: true },
     { key: "file_name", label: "File Name", sortable: true },
-    {
+    /*{
       key: "stage",
       label: "Stage",
       sortable: true,
@@ -160,7 +160,7 @@ const LoadErrorsPage = () => {
           </Badge>
         );
       },
-    },
+    },*/
     {
       key: "error_detail",
       label: "Error Detail",

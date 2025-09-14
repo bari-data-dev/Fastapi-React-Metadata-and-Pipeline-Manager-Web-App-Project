@@ -149,8 +149,7 @@ const RowValidationPage = () => {
     { key: "error_id", label: "Error ID", sortable: true },
     { key: "client_schema", label: "Client", sortable: true },
     { key: "file_name", label: "File Name", sortable: true },
-    { key: "column_name", label: "Column", sortable: true },
-    {
+    /*{
       key: "error_type",
       label: "Error Type",
       sortable: true,
@@ -170,7 +169,7 @@ const RowValidationPage = () => {
           </Badge>
         );
       },
-    },
+    },*/
     {
       key: "error_detail",
       label: "Error Detail",
@@ -180,6 +179,7 @@ const RowValidationPage = () => {
         </div>
       ),
     },
+    { key: "column_name", label: "Column", sortable: true },
     { key: "batch_id", label: "Batch ID", sortable: true },
     { key: "timestamp", label: "Timestamp", sortable: true },
   ];
