@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AppSidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
+import { PageTransition } from "@/components/layout/PageTransition";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import ClientsPage from "./pages/metadata/ClientsPage";
@@ -40,33 +41,35 @@ const App = () => (
             <main className="flex-1 flex flex-col">
               <Header />
               <div className="flex-1">
-                <Routes>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  
-                  {/* Metadata Management Routes */}
-                  <Route path="/metadata/clients" element={<ClientsPage />} />
-                  <Route path="/metadata/config" element={<ConfigPage />} />
-                  <Route path="/metadata/mapping" element={<MappingPage />} />
-                  <Route path="/metadata/required" element={<RequiredColumnsPage />} />
-                  <Route path="/metadata/transform" element={<TransformationsPage />} />
-                  <Route path="/metadata/integrations" element={<IntegrationsPage />} />
-                  <Route path="/metadata/integration-dependencies" element={<IntegrationDependenciesPage />} />
-                  <Route path="/metadata/mv-refresh" element={<MvRefreshPage />} />
-                  
-                  {/* Audit & Reports Routes */}
-                  <Route path="/audit/files" element={<FileAuditPage />} />
-                  <Route path="/audit/jobs" element={<JobExecutionPage />} />
-                  <Route path="/audit/mapping" element={<MappingValidationPage />} />
-                  <Route path="/audit/rows" element={<RowValidationPage />} />
-                  <Route path="/audit/errors" element={<LoadErrorsPage />} />
-                  <Route path="/audit/transform" element={<TransformationLogsPage />} />
-                  <Route path="/audit/integration-logs" element={<IntegrationLogsPage />} />
-                  <Route path="/audit/mv-refresh-logs" element={<MvRefreshLogsPage />} />
-                  
-                  {/* Catch-all route */}
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
+                <PageTransition>
+                  <Routes>
+                    <Route path="/" element={<Index />} />
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    
+                    {/* Metadata Management Routes */}
+                    <Route path="/metadata/clients" element={<ClientsPage />} />
+                    <Route path="/metadata/config" element={<ConfigPage />} />
+                    <Route path="/metadata/mapping" element={<MappingPage />} />
+                    <Route path="/metadata/required" element={<RequiredColumnsPage />} />
+                    <Route path="/metadata/transform" element={<TransformationsPage />} />
+                    <Route path="/metadata/integrations" element={<IntegrationsPage />} />
+                    <Route path="/metadata/integration-dependencies" element={<IntegrationDependenciesPage />} />
+                    <Route path="/metadata/mv-refresh" element={<MvRefreshPage />} />
+                    
+                    {/* Audit & Reports Routes */}
+                    <Route path="/audit/files" element={<FileAuditPage />} />
+                    <Route path="/audit/jobs" element={<JobExecutionPage />} />
+                    <Route path="/audit/mapping" element={<MappingValidationPage />} />
+                    <Route path="/audit/rows" element={<RowValidationPage />} />
+                    <Route path="/audit/errors" element={<LoadErrorsPage />} />
+                    <Route path="/audit/transform" element={<TransformationLogsPage />} />
+                    <Route path="/audit/integration-logs" element={<IntegrationLogsPage />} />
+                    <Route path="/audit/mv-refresh-logs" element={<MvRefreshLogsPage />} />
+                    
+                    {/* Catch-all route */}
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </PageTransition>
               </div>
             </main>
           </div>

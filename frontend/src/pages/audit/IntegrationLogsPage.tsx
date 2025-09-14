@@ -185,7 +185,7 @@ const IntegrationLogsPage: React.FC = () => {
   const sourceForAggregation = processedRows.length > 0 ? processedRows : displayed;
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="h-full w-full p-6 space-y-6 flex flex-col overflow-auto">
       <div>
         <h1 className="text-3xl font-bold">Integration Logs</h1>
         <p className="text-muted-foreground">View integration execution logs and status information</p>

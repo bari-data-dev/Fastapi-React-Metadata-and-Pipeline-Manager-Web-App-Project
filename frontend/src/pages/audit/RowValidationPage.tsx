@@ -1,11 +1,6 @@
+// src/pages/metadata/RowValidationPage.tsx
 import { useEffect, useMemo, useState } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/common/DataTable";
 import { MetadataListFilter } from "@/components/common/MetadataListFilter";
 import { Badge } from "@/components/ui/badge";
@@ -155,7 +150,6 @@ const RowValidationPage = () => {
     { key: "client_schema", label: "Client", sortable: true },
     { key: "file_name", label: "File Name", sortable: true },
     { key: "column_name", label: "Column", sortable: true },
-    { key: "row_number", label: "Row #", sortable: true },
     {
       key: "error_type",
       label: "Error Type",
@@ -172,7 +166,7 @@ const RowValidationPage = () => {
             variant="secondary"
             className={colorMap[value] || "bg-gray-100 text-gray-800"}
           >
-            {value}
+            {value || "—"}
           </Badge>
         );
       },
@@ -182,7 +176,7 @@ const RowValidationPage = () => {
       label: "Error Detail",
       render: (value: string) => (
         <div className="max-w-xs truncate" title={value}>
-          {value}
+          {value || "—"}
         </div>
       ),
     },
@@ -208,7 +202,7 @@ const RowValidationPage = () => {
   }, {} as Record<string, number>);
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="h-full w-full p-6 space-y-6 flex flex-col overflow-auto">
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold tracking-tight">

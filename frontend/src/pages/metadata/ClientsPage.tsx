@@ -238,7 +238,7 @@ const ClientsPage = () => {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="h-full w-full p-6 space-y-6 flex flex-col overflow-auto">
       {/* Header with Add Client button on the right (consistent placement) */}
       <div className="flex items-center justify-between">
         <div>
@@ -376,8 +376,8 @@ const ClientsPage = () => {
         className="space-y-6"
       >
         <TabsList>
-          <TabsTrigger value="view">View Clients</TabsTrigger>
-          <TabsTrigger value="batch">Add Batch</TabsTrigger>
+          <TabsTrigger value="view">View</TabsTrigger>
+          <TabsTrigger value="batch">New</TabsTrigger>
         </TabsList>
 
         <TabsContent value="view" className="space-y-6">
@@ -405,7 +405,7 @@ const ClientsPage = () => {
 
         <TabsContent value="batch" className="space-y-6">
           <BatchEditMetadata
-            title="Add Clients (Batch)"
+            title=""
             fields={[
               {
                 name: "client_schema",

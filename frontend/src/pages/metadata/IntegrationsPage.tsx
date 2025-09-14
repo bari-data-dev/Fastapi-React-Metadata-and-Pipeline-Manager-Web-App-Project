@@ -425,7 +425,7 @@ const IntegrationsPage = () => {
   ];
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="h-full w-full p-6 space-y-6 flex flex-col overflow-auto">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
@@ -566,7 +566,7 @@ const IntegrationsPage = () => {
       >
         <TabsList>
           <TabsTrigger value="view">View</TabsTrigger>
-          <TabsTrigger value="batch">Batch Add</TabsTrigger>
+          <TabsTrigger value="batch">New</TabsTrigger>
         </TabsList>
 
         <TabsContent value="view" className="space-y-6">
@@ -589,7 +589,7 @@ const IntegrationsPage = () => {
 
         <TabsContent value="batch" className="space-y-6">
           <BatchEditMetadata
-            title="Integration Configs (Batch)"
+            title=""
             fields={batchFields}
             initialData={[]}
             fieldOptions={{ client_id: { options: clientOptions } }}

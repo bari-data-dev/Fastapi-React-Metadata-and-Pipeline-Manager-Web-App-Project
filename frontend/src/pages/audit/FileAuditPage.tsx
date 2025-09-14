@@ -17,7 +17,8 @@ import type { FileAuditLog, FilterOptions } from "@/types";
 function normalizeOptions(opts: { value?: string | number; label?: string }[]) {
   return (opts || [])
     .map((o) => {
-      const value = o.value === undefined || o.value === null ? "" : String(o.value);
+      const value =
+        o.value === undefined || o.value === null ? "" : String(o.value);
       const label = (o.label ?? "").toString();
       return { value, label };
     })
@@ -36,7 +37,9 @@ const FileAuditPage = () => {
 
   // client refs for mapping + select options
   const [clientMap, setClientMap] = useState<Record<number, string>>({});
-  const [clientOptions, setClientOptions] = useState<{ value: string; label: string }[]>([]);
+  const [clientOptions, setClientOptions] = useState<
+    { value: string; label: string }[]
+  >([]);
 
   // batch suggestions derived from full log list for the selected client (or all clients)
   const [batchOptions, setBatchOptions] = useState<string[]>([]);
@@ -53,7 +56,8 @@ const FileAuditPage = () => {
         const optsRaw: { value: string; label: string }[] = [];
         (clientsResp?.data ?? []).forEach((c: any) => {
           if (typeof c.client_id === "number") {
-            const label = c.client_schema ?? c.client_name ?? String(c.client_id);
+            const label =
+              c.client_schema ?? c.client_name ?? String(c.client_id);
             map[c.client_id] = label;
             optsRaw.push({ value: String(c.client_id), label });
           }
@@ -79,7 +83,10 @@ const FileAuditPage = () => {
   const loadAuditLogs = async () => {
     try {
       setLoading(true);
-      const resp = await fileAuditLogApi.getAll(filters.clientId, filters.batchId);
+      const resp = await fileAuditLogApi.getAll(
+        filters.clientId,
+        filters.batchId
+      );
       setAuditLogs(resp?.data ?? []);
     } catch (err) {
       console.error("load file audit logs error", err);
@@ -99,7 +106,9 @@ const FileAuditPage = () => {
   const loadBatchOptions = async (clientId?: number) => {
     try {
       const resp = await fileAuditLogApi.getAll(clientId, undefined);
-      const batches = Array.from(new Set((resp?.data ?? []).map((r) => r.batch_id).filter(Boolean))) as string[];
+      const batches = Array.from(
+        new Set((resp?.data ?? []).map((r) => r.batch_id).filter(Boolean))
+      ) as string[];
       batches.sort((a, b) => a.localeCompare(b));
       setBatchOptions(batches);
     } catch (err) {
@@ -113,15 +122,22 @@ const FileAuditPage = () => {
     loadBatchOptions(filters.clientId);
   }, [filters.clientId]);
 
-  // helper status checks (same logic as requested)
+  // helper status checks (include config_validation_status as well)
   const isAllSuccess = (log: FileAuditLog) => {
     const statuses = [
       log.convert_status,
       log.mapping_validation_status,
       log.row_validation_status,
+      log.config_validation_status,
       log.load_status,
-    ].map((s) => (s ?? "").toLowerCase());
-    return statuses.every((s) => s === "" || s.includes("success") || s.includes("loaded") || s.includes("ok"));
+    ].map((s) => (s ?? "").toString().toLowerCase());
+    return statuses.every(
+      (s) =>
+        s === "" ||
+        s.includes("success") ||
+        s.includes("loaded") ||
+        s.includes("ok")
+    );
   };
 
   const hasAnyFailed = (log: FileAuditLog) => {
@@ -129,9 +145,12 @@ const FileAuditPage = () => {
       log.convert_status,
       log.mapping_validation_status,
       log.row_validation_status,
+      log.config_validation_status,
       log.load_status,
-    ].map((s) => (s ?? "").toLowerCase());
-    return statuses.some((s) => s.includes("fail") || s.includes("error") || s.includes("failed"));
+    ].map((s) => (s ?? "").toString().toLowerCase());
+    return statuses.some(
+      (s) => s.includes("fail") || s.includes("error") || s.includes("failed")
+    );
   };
 
   // filter client-side according to applied `filters` (status logic implemented here)
@@ -153,19 +172,23 @@ const FileAuditPage = () => {
     { key: "client_schema", label: "Client Schema", sortable: true },
     { key: "logical_source_file", label: "Source File", sortable: true },
     { key: "physical_file_name", label: "Physical File", sortable: true },
-    
+    { key: "source_type", label: "Source Type", sortable: true },
+    { key: "source_system", label: "Source System", sortable: true },
     {
       key: "total_rows",
       label: "Records",
       sortable: true,
       render: (value: number, row: FileAuditLog) => {
         if (!value) return "-";
-        const validRate = ((row.valid_rows || 0) / value) * 100;
+        const validRows = (row as any).valid_rows ?? 0;
+        const validRate = value > 0 ? (validRows / value) * 100 : 0;
         return (
           <div className="space-y-1">
             <div className="text-sm font-medium">{value.toLocaleString()}</div>
             <Progress value={validRate} className="h-1" />
-            <div className="text-xs text-muted-foreground">{validRate.toFixed(1)}% valid</div>
+            <div className="text-xs text-muted-foreground">
+              {validRate.toFixed(1)}% valid
+            </div>
           </div>
         );
       },
@@ -173,6 +196,7 @@ const FileAuditPage = () => {
     { key: "convert_status", label: "Convert", sortable: true },
     { key: "mapping_validation_status", label: "Mapping", sortable: true },
     { key: "row_validation_status", label: "Validation", sortable: true },
+    { key: "config_validation_status", label: "Config", sortable: true },
     { key: "load_status", label: "Load", sortable: true },
     { key: "processed_by", label: "Processed By", sortable: true },
     { key: "file_received_time", label: "Received", sortable: true },
@@ -187,13 +211,16 @@ const FileAuditPage = () => {
   }));
 
   // choose source for aggregation:
-  const sourceForAggregation = processedRows.length > 0 ? processedRows : displayed;
+  const sourceForAggregation =
+    processedRows.length > 0 ? processedRows : displayed;
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="h-full w-full p-6 space-y-6 flex flex-col overflow-auto">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">File Audit Logs</h1>
-        <p className="text-muted-foreground">Comprehensive audit trail of file processing activities and status</p>
+        <p className="text-muted-foreground">
+          Comprehensive audit trail of file processing activities and status
+        </p>
       </div>
 
       {/* summary cards */}
@@ -203,18 +230,26 @@ const FileAuditPage = () => {
             <CardTitle className="text-sm font-medium">Total Files</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{sourceForAggregation.length}</div>
+            <div className="text-2xl font-bold">
+              {sourceForAggregation.length}
+            </div>
           </CardContent>
         </Card>
 
         <Card className="professional-card">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Valid and Loaded</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Valid and Loaded
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
               {
-                sourceForAggregation.filter((log) => (log.load_status ?? "").toLowerCase().includes("load") || isAllSuccess(log)).length
+                sourceForAggregation.filter(
+                  (log) =>
+                    (log.load_status ?? "").toLowerCase().includes("load") ||
+                    isAllSuccess(log)
+                ).length
               }
             </div>
           </CardContent>
@@ -222,10 +257,14 @@ const FileAuditPage = () => {
 
         <Card className="professional-card">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Invalid and Loaded</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Invalid and Loaded
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{sourceForAggregation.filter((log) => hasAnyFailed(log)).length}</div>
+            <div className="text-2xl font-bold text-red-600">
+              {sourceForAggregation.filter((log) => hasAnyFailed(log)).length}
+            </div>
           </CardContent>
         </Card>
 
@@ -234,7 +273,11 @@ const FileAuditPage = () => {
             <CardTitle className="text-sm font-medium">Total Records</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{sourceForAggregation.reduce((sum, log) => sum + (log.total_rows || 0), 0).toLocaleString()}</div>
+            <div className="text-2xl font-bold">
+              {sourceForAggregation
+                .reduce((sum, log) => sum + (log.total_rows || 0), 0)
+                .toLocaleString()}
+            </div>
           </CardContent>
         </Card>
       </div>

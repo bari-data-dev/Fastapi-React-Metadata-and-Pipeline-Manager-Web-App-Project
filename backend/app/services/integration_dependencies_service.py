@@ -73,8 +73,16 @@ def update(
 ) -> IntegrationDependency:
     obj = get_by_id(db, dependency_id)
     data = payload.dict(exclude_unset=True)
+
+    if "client_id" in data and not data.get("client_id"):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="client_id cannot be empty",
+        )
+
     for k, v in data.items():
         setattr(obj, k, v)
+
     db.add(obj)
     db.commit()
     db.refresh(obj)

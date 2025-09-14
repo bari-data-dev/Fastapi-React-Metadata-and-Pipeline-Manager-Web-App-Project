@@ -1,12 +1,13 @@
 # backend/app/schemas/integration_dependencies.py
 from typing import Optional
-from sqlmodel import SQLModel, Field
+from sqlmodel import SQLModel
 
 
 class IntegrationDependencyBase(SQLModel):
     client_id: int
     fact_proc_name: str
     dim_proc_name: str
+    is_active: Optional[bool] = True
 
 
 class IntegrationDependencyCreate(IntegrationDependencyBase):
@@ -18,7 +19,7 @@ class IntegrationDependencyRead(IntegrationDependencyBase):
 
 
 class IntegrationDependencyUpdate(SQLModel):
-    # partial update allowed — all fields optional
     client_id: Optional[int] = None
     fact_proc_name: Optional[str] = None
     dim_proc_name: Optional[str] = None
+    is_active: Optional[bool] = True

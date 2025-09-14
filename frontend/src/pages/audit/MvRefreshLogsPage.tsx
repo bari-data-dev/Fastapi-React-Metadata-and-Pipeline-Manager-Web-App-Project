@@ -166,7 +166,7 @@ const MvRefreshLogsPage: React.FC = () => {
   const sourceForAggregation = processedRows.length > 0 ? processedRows : displayed;
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="h-full w-full p-6 space-y-6 flex flex-col overflow-auto">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">MV Refresh Logs</h1>
         <p className="text-muted-foreground">View materialized view refresh logs and status information</p>

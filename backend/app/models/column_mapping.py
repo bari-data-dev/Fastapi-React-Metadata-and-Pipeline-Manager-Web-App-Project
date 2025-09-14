@@ -17,4 +17,7 @@ class ColumnMapping(SQLModel, table=True):
     )
     source_column: str = Field(index=True)
     target_column: str = Field(index=True)
+    is_active: Optional[bool] = True
     logical_source_file: Optional[str] = None
+    source_type: str = Field(nullable=False, max_length=20)
+    source_system: str = Field(nullable=False, max_length=20)
