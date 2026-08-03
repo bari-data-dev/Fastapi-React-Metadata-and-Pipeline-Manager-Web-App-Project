@@ -1,5 +1,16 @@
+import { FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,22 +22,61 @@ import {
 import { ExternalLink, Home, LogOut, Settings, User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { authApi } from "@/lib/appApi";
+import { useToast } from "@/hooks/use-toast";
 
 
 export function Header() {
   const navigate = useNavigate();
-  const { state: sidebarState, toggleSidebar } = useSidebar();
+  const { state: sidebarState } = useSidebar();
   const { user, logout } = useAuth();
+  const { toast } = useToast();
   const isCollapsed = sidebarState === "collapsed";
 
+  const [orchestratorDialogOpen, setOrchestratorDialogOpen] = useState(false);
+  const [orchestratorPassword, setOrchestratorPassword] = useState("");
+  const [orchestratorLoading, setOrchestratorLoading] = useState(false);
+
   const handleHomeClick = () => {
-    if (!isCollapsed) toggleSidebar();
     navigate("/");
   };
 
   const handleLogout = () => {
     logout();
     navigate("/login", { replace: true });
+  };
+
+  const handleOrchestratorSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!orchestratorPassword || orchestratorLoading) return;
+
+    const prefectWindow = window.open("", "_blank");
+    setOrchestratorLoading(true);
+
+    try {
+      const response = await authApi.orchestratorAccess(orchestratorPassword);
+      setOrchestratorDialogOpen(false);
+      setOrchestratorPassword("");
+
+      if (prefectWindow) {
+        prefectWindow.opener = null;
+        prefectWindow.location.replace(response.data.url);
+      } else {
+        window.location.assign(response.data.url);
+      }
+    } catch (error) {
+      if (prefectWindow) prefectWindow.close();
+      setOrchestratorDialogOpen(false);
+      setOrchestratorPassword("");
+      navigate("/", { replace: true });
+      toast({
+        variant: "destructive",
+        title: "Akses Prefect UI ditolak",
+        description: error instanceof Error ? error.message : "Password orchestrator salah",
+      });
+    } finally {
+      setOrchestratorLoading(false);
+    }
   };
 
   const lgLeftClass = isCollapsed ? "lg:left-16" : "lg:left-64";
@@ -54,7 +104,7 @@ export function Header() {
               variant="outline"
               size="sm"
               className="hidden md:flex items-center space-x-2"
-              onClick={() => window.open("http://192.100.38.52:4200/", "_blank")}
+              onClick={() => setOrchestratorDialogOpen(true)}
             >
               <ExternalLink className="h-4 w-4" />
               <span>Prefect UI</span>
@@ -100,6 +150,58 @@ export function Header() {
           </div>
         </div>
       </header>
+
+      <Dialog
+        open={orchestratorDialogOpen}
+        onOpenChange={(open) => {
+          if (!orchestratorLoading) {
+            setOrchestratorDialogOpen(open);
+            if (!open) setOrchestratorPassword("");
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <form onSubmit={handleOrchestratorSubmit}>
+            <DialogHeader>
+              <DialogTitle>Akses Prefect UI</DialogTitle>
+              <DialogDescription>
+                Masukkan password orchestrator untuk membuka Prefect UI.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="py-5 space-y-2">
+              <Label htmlFor="orchestrator-password">Password orchestrator</Label>
+              <Input
+                id="orchestrator-password"
+                type="password"
+                autoFocus
+                autoComplete="current-password"
+                value={orchestratorPassword}
+                onChange={(event) => setOrchestratorPassword(event.target.value)}
+                placeholder="Masukkan password"
+                disabled={orchestratorLoading}
+              />
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={orchestratorLoading}
+                onClick={() => {
+                  setOrchestratorDialogOpen(false);
+                  setOrchestratorPassword("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={!orchestratorPassword || orchestratorLoading}>
+                {orchestratorLoading ? "Memeriksa..." : "Buka Prefect UI"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <div className="h-16" aria-hidden />
     </>
