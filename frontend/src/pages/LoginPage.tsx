@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+const SIDEBAR_STORAGE_KEY = "metadata_app_sidebar_open";
 
 export default function LoginPage() {
   const { user, login } = useAuth();
@@ -15,7 +16,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  if (user) return <Navigate to="/metadata/odists-parsing" replace />;
+  if (user) return <Navigate to="/" replace />;
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -23,7 +24,8 @@ export default function LoginPage() {
     setSubmitting(true);
     try {
       await login(username, password);
-      navigate("/metadata/odists-parsing", { replace: true });
+      localStorage.setItem(SIDEBAR_STORAGE_KEY, "false");
+      navigate("/", { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login gagal");
     } finally {
@@ -36,7 +38,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Metadata Manager</CardTitle>
-          <CardDescription>Masuk untuk mengakses ODIST Parsing.</CardDescription>
+          <CardDescription>Masuk untuk mengakses aplikasi.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
