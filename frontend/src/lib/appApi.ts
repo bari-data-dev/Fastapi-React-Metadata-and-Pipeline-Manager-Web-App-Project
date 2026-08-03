@@ -19,6 +19,7 @@ export type AppUser = {
 
 export type OdistsColumn = {
   name: string;
+  label: string;
   data_type: string;
   is_nullable: boolean;
   ordinal_position: number;
@@ -32,6 +33,11 @@ export type OdistsPage = {
   page_size: number;
   total_pages: number;
   columns: OdistsColumn[];
+};
+
+export type DistinctValue = {
+  value: unknown;
+  row_count: number;
 };
 
 function getToken(): string | null {
@@ -98,6 +104,13 @@ export const odistsApi = {
       sort_dir: params.sortDir,
     });
     return appFetch<OdistsPage>(`/odists-parsing?${query.toString()}`);
+  },
+  getDistinctValues: (field: string, search = "", limit = 100) => {
+    const query = new URLSearchParams({ limit: String(limit) });
+    if (search) query.set("search", search);
+    return appFetch<DistinctValue[]>(
+      `/odists-parsing/values/${encodeURIComponent(field)}?${query.toString()}`
+    );
   },
   update: (id: number, values: Record<string, unknown>) =>
     appFetch<Record<string, unknown>>(`/odists-parsing/${id}`, {
