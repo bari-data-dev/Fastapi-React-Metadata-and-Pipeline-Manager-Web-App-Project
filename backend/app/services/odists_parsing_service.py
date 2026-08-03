@@ -245,6 +245,152 @@ def get_distinct_values(
     ]
 
 
+def update_rows(
+    mysql_db: Session,
+    audit_db: Session,
+    items: List[Dict[str, Any]],
+    current_user: AppUser,
+) -> Dict[str, Any]:
+    if not items:
+        raise HTTPException(status_code=422, detail="Tidak ada perubahan yang dikirim")
+    if len(items) > 200:
+        raise HTTPException(status_code=422, detail="Maksimal 200 row dalam satu batch")
+
+    item_ids = [int(item["id"]) for item in items]
+    if len(item_ids) != len(set(item_ids)):
+        raise HTTPException(status_code=422, detail="Terdapat odists_id duplikat dalam batch")
+
+    metadata = _column_metadata(mysql_db)
+    editable = {item["name"] for item in metadata if item["editable"]}
+    parser_name = (current_user.full_name or current_user.username).strip()
+    status_upd = f"Parsed by {parser_name}"
+    audit_records: List[Dict[str, Any]] = []
+
+    try:
+        for item in items:
+            odist_id = int(item["id"])
+            values = item.get("values") or {}
+            clean_values = {
+                key: value for key, value in values.items() if key in editable
+            }
+            if not clean_values:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Tidak ada field editable untuk odists_id {odist_id}",
+                )
+
+            old_row = mysql_db.execute(
+                text(
+                    f"SELECT * FROM {_quote(TABLE_NAME)} "
+                    "WHERE `id` = :id FOR UPDATE"
+                ),
+                {"id": odist_id},
+            ).mappings().one_or_none()
+            if old_row is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Data ODIST {odist_id} tidak ditemukan",
+                )
+
+            changed_values: Dict[str, Any] = {}
+            for field, value in clean_values.items():
+                normalized = None if value == "" else value
+                if normalized != old_row.get(field):
+                    changed_values[field] = normalized
+
+            if not changed_values:
+                continue
+
+            params: Dict[str, Any] = {
+                "id": odist_id,
+                "updated_by": current_user.user_id,
+                "status_upd": status_upd,
+            }
+            set_parts: List[str] = []
+            for index, (field, value) in enumerate(changed_values.items()):
+                key = f"value_{index}"
+                set_parts.append(f"{_quote(field)} = :{key}")
+                params[key] = value
+
+            set_parts.extend(
+                [
+                    "`updated_at` = CURRENT_TIMESTAMP",
+                    "`parsed_at` = CURRENT_TIMESTAMP",
+                    "`status_upd` = :status_upd",
+                    "`updated_by` = :updated_by",
+                ]
+            )
+
+            mysql_db.execute(
+                text(
+                    f"UPDATE {_quote(TABLE_NAME)} "
+                    f"SET {', '.join(set_parts)} WHERE `id` = :id"
+                ),
+                params,
+            )
+
+            audit_records.append(
+                {
+                    "odist_id": odist_id,
+                    "user_id": current_user.user_id,
+                    "username": current_user.username,
+                    "changed_fields": json.dumps(
+                        list(changed_values.keys()), ensure_ascii=False
+                    ),
+                    "old_values": json.dumps(
+                        {field: old_row.get(field) for field in changed_values},
+                        ensure_ascii=False,
+                        default=str,
+                    ),
+                    "new_values": json.dumps(
+                        changed_values,
+                        ensure_ascii=False,
+                        default=str,
+                    ),
+                }
+            )
+
+        if not audit_records:
+            mysql_db.rollback()
+            return {"updated_count": 0, "updated_ids": []}
+
+        mysql_db.commit()
+    except HTTPException:
+        mysql_db.rollback()
+        raise
+    except Exception:
+        mysql_db.rollback()
+        raise
+
+    try:
+        for record in audit_records:
+            audit_db.execute(
+                text(
+                    """
+                    INSERT INTO [tools].[odists_parsing_audit_log]
+                        ([odist_id], [user_id], [username], [changed_fields], [old_values], [new_values])
+                    VALUES
+                        (:odist_id, :user_id, :username, :changed_fields, :old_values, :new_values)
+                    """
+                ),
+                record,
+            )
+        audit_db.commit()
+    except Exception:
+        audit_db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=(
+                "Batch ODIST berhasil diperbarui, tetapi pencatatan audit gagal"
+            ),
+        )
+
+    return {
+        "updated_count": len(audit_records),
+        "updated_ids": [record["odist_id"] for record in audit_records],
+    }
+
+
 def update_row(
     mysql_db: Session,
     audit_db: Session,
@@ -252,91 +398,17 @@ def update_row(
     values: Dict[str, Any],
     current_user: AppUser,
 ) -> Dict[str, Any]:
-    metadata = _column_metadata(mysql_db)
-    editable = {item["name"] for item in metadata if item["editable"]}
-    clean_values = {key: value for key, value in values.items() if key in editable}
-    if not clean_values:
-        raise HTTPException(status_code=422, detail="Tidak ada field editable yang dikirim")
-
-    old_row = mysql_db.execute(
-        text(f"SELECT * FROM {_quote(TABLE_NAME)} WHERE `id` = :id"),
-        {"id": odist_id},
-    ).mappings().one_or_none()
-    if old_row is None:
-        raise HTTPException(status_code=404, detail="Data ODIST tidak ditemukan")
-
-    changed_values: Dict[str, Any] = {}
-    for field, value in clean_values.items():
-        normalized = None if value == "" else value
-        if normalized != old_row.get(field):
-            changed_values[field] = normalized
-
-    if not changed_values:
-        return dict(old_row)
-
-    parser_name = (current_user.full_name or current_user.username).strip()
-    params: Dict[str, Any] = {
-        "id": odist_id,
-        "updated_by": current_user.user_id,
-        "status_upd": f"Parsed by {parser_name}",
-    }
-    set_parts: List[str] = []
-    for index, (field, value) in enumerate(changed_values.items()):
-        key = f"value_{index}"
-        set_parts.append(f"{_quote(field)} = :{key}")
-        params[key] = value
-
-    set_parts.extend(
-        [
-            "`updated_at` = CURRENT_TIMESTAMP",
-            "`parsed_at` = CURRENT_TIMESTAMP",
-            "`status_upd` = :status_upd",
-            "`updated_by` = :updated_by",
-        ]
+    update_rows(
+        mysql_db=mysql_db,
+        audit_db=audit_db,
+        items=[{"id": odist_id, "values": values}],
+        current_user=current_user,
     )
-
-    try:
-        mysql_db.execute(
-            text(
-                f"UPDATE {_quote(TABLE_NAME)} SET {', '.join(set_parts)} WHERE `id` = :id"
-            ),
-            params,
-        )
-        mysql_db.commit()
-    except Exception:
-        mysql_db.rollback()
-        raise
-
-    old_values = {field: old_row.get(field) for field in changed_values}
-    try:
-        audit_db.execute(
-            text(
-                """
-                INSERT INTO [tools].[odists_parsing_audit_log]
-                    ([odist_id], [user_id], [username], [changed_fields], [old_values], [new_values])
-                VALUES
-                    (:odist_id, :user_id, :username, :changed_fields, :old_values, :new_values)
-                """
-            ),
-            {
-                "odist_id": odist_id,
-                "user_id": current_user.user_id,
-                "username": current_user.username,
-                "changed_fields": json.dumps(list(changed_values.keys()), ensure_ascii=False),
-                "old_values": json.dumps(old_values, ensure_ascii=False, default=str),
-                "new_values": json.dumps(changed_values, ensure_ascii=False, default=str),
-            },
-        )
-        audit_db.commit()
-    except Exception:
-        audit_db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Data ODIST berhasil diperbarui, tetapi pencatatan audit gagal",
-        )
 
     updated = mysql_db.execute(
         text(f"SELECT * FROM {_quote(TABLE_NAME)} WHERE `id` = :id"),
         {"id": odist_id},
-    ).mappings().one()
+    ).mappings().one_or_none()
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Data ODIST tidak ditemukan")
     return dict(updated)
