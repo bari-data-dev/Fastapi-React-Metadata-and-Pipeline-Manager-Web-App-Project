@@ -105,6 +105,39 @@ export default function OdistsParsingPage() {
     void load();
   }, [page, pageSize, visibleColumns.join(","), JSON.stringify(appliedFilters), sortBy, sortDir]);
 
+  useEffect(() => {
+    if (!valuePickerField) return;
+
+    let cancelled = false;
+    setValuePickerLoading(true);
+
+    const timer = window.setTimeout(async () => {
+      try {
+        const response = await odistsApi.getDistinctValues(
+          valuePickerField,
+          valuePickerSearch,
+          100
+        );
+        if (!cancelled) {
+          setValuePickerValues(response.data);
+          setError("");
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setValuePickerValues([]);
+          setError(err instanceof Error ? err.message : "Gagal mengambil daftar nilai");
+        }
+      } finally {
+        if (!cancelled) setValuePickerLoading(false);
+      }
+    }, 300);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [valuePickerField, valuePickerSearch]);
+
   const metadata = data?.columns || [];
   const metadataMap = useMemo(
     () => new Map(metadata.map((column) => [column.name, column])),
@@ -207,37 +240,10 @@ export default function OdistsParsingPage() {
     }
   };
 
-  const openValuePicker = async (field: string) => {
-    setValuePickerField(field);
+  const openValuePicker = (field: string) => {
+    setValuePickerValues([]);
     setValuePickerSearch("");
-    setValuePickerLoading(true);
-    setError("");
-    try {
-      const response = await odistsApi.getDistinctValues(field, "", 100);
-      setValuePickerValues(response.data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Gagal mengambil daftar nilai");
-      setValuePickerValues([]);
-    } finally {
-      setValuePickerLoading(false);
-    }
-  };
-
-  const searchDistinctValues = async () => {
-    if (!valuePickerField) return;
-    setValuePickerLoading(true);
-    try {
-      const response = await odistsApi.getDistinctValues(
-        valuePickerField,
-        valuePickerSearch,
-        100
-      );
-      setValuePickerValues(response.data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Gagal mengambil daftar nilai");
-    } finally {
-      setValuePickerLoading(false);
-    }
+    setValuePickerField(field);
   };
 
   const chooseDistinctValue = (value: unknown) => {
@@ -363,7 +369,6 @@ export default function OdistsParsingPage() {
             <table className="w-full text-sm border-collapse">
               <thead className="sticky top-0 bg-background z-10">
                 <tr>
-                  <th className="border-b p-2 text-left min-w-36 align-top">Action</th>
                   {visibleColumns.map((name) => {
                     const column = metadataMap.get(name);
                     return (
@@ -388,7 +393,7 @@ export default function OdistsParsingPage() {
                             variant="outline"
                             className="h-8 px-2"
                             title="Choose value"
-                            onClick={() => void openValuePicker(name)}
+                            onClick={() => openValuePicker(name)}
                           >
                             ⋯
                           </Button>
@@ -401,7 +406,7 @@ export default function OdistsParsingPage() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td className="p-6 text-center" colSpan={visibleColumns.length + 1}>
+                    <td className="p-6 text-center" colSpan={visibleColumns.length}>
                       Memuat data...
                     </td>
                   </tr>
@@ -411,23 +416,10 @@ export default function OdistsParsingPage() {
                     const saving = Boolean(savingRows[rowId(row)]);
                     return (
                       <tr key={rowId(row)} className={dirty ? "bg-amber-50/50 dark:bg-amber-950/20" : "hover:bg-muted/40"}>
-                        <td className="border-b p-2 whitespace-nowrap">
-                          {dirty ? (
-                            <div className="flex gap-1">
-                              <Button size="sm" onClick={() => void saveRow(row)} disabled={saving}>
-                                {saving ? "Saving..." : "Save"}
-                              </Button>
-                              <Button size="sm" variant="outline" onClick={() => cancelRow(row)} disabled={saving}>
-                                Cancel
-                              </Button>
-                            </div>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">Klik cell untuk edit</span>
-                          )}
-                        </td>
                         {visibleColumns.map((name) => {
                           const column = metadataMap.get(name);
                           if (column?.editable) return renderEditableCell(row, column);
+
                           return (
                             <td
                               key={name}
@@ -435,6 +427,16 @@ export default function OdistsParsingPage() {
                               title={row[name] == null ? "NULL" : String(row[name])}
                             >
                               {renderValue(name, row[name])}
+                              {name === "id" && dirty && (
+                                <div className="flex gap-1 mt-2">
+                                  <Button size="sm" onClick={() => void saveRow(row)} disabled={saving}>
+                                    {saving ? "Saving..." : "Save"}
+                                  </Button>
+                                  <Button size="sm" variant="outline" onClick={() => cancelRow(row)} disabled={saving}>
+                                    Cancel
+                                  </Button>
+                                </div>
+                              )}
                             </td>
                           );
                         })}
@@ -443,7 +445,7 @@ export default function OdistsParsingPage() {
                   })
                 ) : (
                   <tr>
-                    <td className="p-6 text-center" colSpan={visibleColumns.length + 1}>
+                    <td className="p-6 text-center" colSpan={visibleColumns.length}>
                       Tidak ada data.
                     </td>
                   </tr>
@@ -486,17 +488,15 @@ export default function OdistsParsingPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 overflow-hidden flex flex-col">
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Cari value..."
-                  value={valuePickerSearch}
-                  onChange={(event) => setValuePickerSearch(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") void searchDistinctValues();
-                  }}
-                />
-                <Button onClick={() => void searchDistinctValues()}>Search</Button>
-              </div>
+              <Input
+                autoFocus
+                placeholder="Cari value..."
+                value={valuePickerSearch}
+                onChange={(event) => setValuePickerSearch(event.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Daftar diperbarui otomatis saat pencarian diketik.
+              </p>
               <div className="border rounded-md overflow-auto max-h-[55vh]">
                 {valuePickerLoading ? (
                   <div className="p-4 text-center">Memuat value...</div>
@@ -509,20 +509,28 @@ export default function OdistsParsingPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {valuePickerValues.map((item, index) => (
-                        <tr
-                          key={`${String(item.value)}-${index}`}
-                          className="hover:bg-muted cursor-pointer"
-                          onDoubleClick={() => chooseDistinctValue(item.value)}
-                        >
-                          <td className="p-2 border-b">
-                            <button className="w-full text-left" onClick={() => chooseDistinctValue(item.value)}>
-                              {item.value === null ? <span className="italic">NULL</span> : String(item.value)}
-                            </button>
+                      {valuePickerValues.length ? (
+                        valuePickerValues.map((item, index) => (
+                          <tr
+                            key={`${String(item.value)}-${index}`}
+                            className="hover:bg-muted cursor-pointer"
+                            onDoubleClick={() => chooseDistinctValue(item.value)}
+                          >
+                            <td className="p-2 border-b">
+                              <button className="w-full text-left" onClick={() => chooseDistinctValue(item.value)}>
+                                {item.value === null ? <span className="italic">NULL</span> : String(item.value)}
+                              </button>
+                            </td>
+                            <td className="p-2 border-b text-right">{item.row_count}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td className="p-4 text-center text-muted-foreground" colSpan={2}>
+                            Value tidak ditemukan.
                           </td>
-                          <td className="p-2 border-b text-right">{item.row_count}</td>
                         </tr>
-                      ))}
+                      )}
                     </tbody>
                   </table>
                 )}
