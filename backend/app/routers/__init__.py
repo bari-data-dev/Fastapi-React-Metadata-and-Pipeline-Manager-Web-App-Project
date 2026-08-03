@@ -10,6 +10,7 @@ from .audit_log_router import router as audit_log_router
 from .bronze_mapping_kowil_router import router as bronze_mapping_kowil_router
 from .auth_router import router as auth_router
 from .odists_parsing_router import router as odists_parsing_router
+from .parsing_report_router import router as parsing_report_router
 
 
 all_routers = [
@@ -25,4 +26,5 @@ all_routers = [
     bronze_mapping_kowil_router,
     auth_router,
     odists_parsing_router,
+    parsing_report_router,
 ]
