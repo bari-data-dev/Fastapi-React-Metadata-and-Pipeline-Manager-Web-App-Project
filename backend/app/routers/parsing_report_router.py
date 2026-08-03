@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime, time
 
 from fastapi import APIRouter, Depends, Query
 from sqlmodel import Session
@@ -13,10 +13,14 @@ from app.types import ApiResponse
 router = APIRouter(prefix="/parsing-report", tags=["Parsing Report"])
 
 
+def _start_of_day(value: date | None) -> datetime | None:
+    return datetime.combine(value, time.min) if value is not None else None
+
+
 @router.get("/summary", response_model=ApiResponse[dict])
 def get_summary(
-    date_from: datetime | None = None,
-    date_to: datetime | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
     user_id: int | None = None,
     mysql_db: Session = Depends(get_mysql_pipeline_session),
     audit_db: Session = Depends(get_session),
@@ -25,8 +29,8 @@ def get_summary(
     data = parsing_report_service.get_summary(
         mysql_db=mysql_db,
         audit_db=audit_db,
-        date_from=date_from,
-        date_to=date_to,
+        date_from=_start_of_day(date_from),
+        date_to=_start_of_day(date_to),
         user_id=user_id,
     )
     return ApiResponse(success=True, data=data)
@@ -59,8 +63,8 @@ def get_effective_results(
 def get_activity_history(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
-    date_from: datetime | None = None,
-    date_to: datetime | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
     user_id: int | None = None,
     change_type: str | None = None,
     revert_state: str | None = None,
@@ -79,8 +83,8 @@ def get_activity_history(
         audit_db=audit_db,
         page=page,
         page_size=page_size,
-        date_from=date_from,
-        date_to=date_to,
+        date_from=_start_of_day(date_from),
+        date_to=_start_of_day(date_to),
         user_id=user_id,
         change_type=change_type,
         revert_state=revert_state,
