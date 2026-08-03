@@ -1,9 +1,11 @@
 import {
   KeyboardEvent as ReactKeyboardEvent,
+  MouseEvent as ReactMouseEvent,
   useEffect,
   useMemo,
   useState,
 } from "react";
+import { Filter } from "lucide-react";
 import {
   DistinctValue,
   odistsApi,
@@ -12,7 +14,12 @@ import {
   OdistsPage,
 } from "@/lib/appApi";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
 const DEFAULT_COLUMNS = [
@@ -42,6 +49,11 @@ const DATE_FIELDS = new Set([
   "dwh_refreshed_at",
 ]);
 
+const DEFAULT_COLUMN_WIDTH = 210;
+const ID_COLUMN_WIDTH = 230;
+const MIN_COLUMN_WIDTH = 110;
+const MAX_COLUMN_WIDTH = 700;
+
 type SelectedValue = string | number | null;
 
 function formatDate(value: unknown) {
@@ -64,8 +76,7 @@ function renderValue(field: string, value: unknown) {
     return <span className="italic text-muted-foreground">NULL</span>;
   }
   if (DATE_FIELDS.has(field)) return formatDate(value);
-  const text = String(value);
-  return text.length > 80 ? `${text.slice(0, 80)}...` : text;
+  return String(value);
 }
 
 function normalizedValue(value: unknown) {
@@ -89,7 +100,6 @@ function parseSelectedValues(filterValue: string | undefined): SelectedValue[] {
 export default function OdistsParsingPage() {
   const [data, setData] = useState<OdistsPage | null>(null);
   const [visibleColumns, setVisibleColumns] = useState<string[]>(DEFAULT_COLUMNS);
-  const [filters, setFilters] = useState<Record<string, string>>({});
   const [appliedFilters, setAppliedFilters] = useState<Record<string, string>>({});
   const [fieldSearch, setFieldSearch] = useState("");
   const [showFields, setShowFields] = useState(false);
@@ -110,6 +120,7 @@ export default function OdistsParsingPage() {
   const [valuePickerValues, setValuePickerValues] = useState<DistinctValue[]>([]);
   const [valuePickerLoading, setValuePickerLoading] = useState(false);
   const [selectedValues, setSelectedValues] = useState<SelectedValue[]>([]);
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
 
   const load = async () => {
     setLoading(true);
@@ -153,7 +164,8 @@ export default function OdistsParsingPage() {
         const response = await odistsApi.getDistinctValues(
           valuePickerField,
           valuePickerSearch,
-          100
+          200,
+          appliedFilters
         );
         if (!cancelled) {
           setValuePickerValues(response.data);
@@ -175,18 +187,79 @@ export default function OdistsParsingPage() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [valuePickerField, valuePickerSearch]);
+  }, [
+    valuePickerField,
+    valuePickerSearch,
+    JSON.stringify(appliedFilters),
+  ]);
 
   const metadata = data?.columns || [];
   const metadataMap = useMemo(
     () => new Map(metadata.map((column) => [column.name, column])),
     [metadata]
   );
+
+  const displayColumnName = (name: string) =>
+    (metadataMap.get(name)?.label || name).replace(/_/g, " ").toUpperCase();
+
   const filteredFields = metadata.filter((column) =>
     `${column.name} ${column.label}`
       .toLowerCase()
       .includes(fieldSearch.toLowerCase())
   );
+
+  const activeFilterCount = Object.keys(appliedFilters).length;
+
+  const getColumnWidth = (name: string) =>
+    columnWidths[name] ??
+    (name === "id" ? ID_COLUMN_WIDTH : DEFAULT_COLUMN_WIDTH);
+
+  const totalTableWidth = visibleColumns.reduce(
+    (total, name) => total + getColumnWidth(name),
+    0
+  );
+
+  const beginColumnResize = (
+    event: ReactMouseEvent<HTMLDivElement>,
+    name: string
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const startX = event.clientX;
+    const startWidth = getColumnWidth(name);
+    const previousCursor = document.body.style.cursor;
+    const previousUserSelect = document.body.style.userSelect;
+
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const nextWidth = Math.min(
+        MAX_COLUMN_WIDTH,
+        Math.max(MIN_COLUMN_WIDTH, startWidth + moveEvent.clientX - startX)
+      );
+      setColumnWidths((current) => ({ ...current, [name]: nextWidth }));
+    };
+
+    const handleMouseUp = () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = previousCursor;
+      document.body.style.userSelect = previousUserSelect;
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+  };
+
+  const resetColumnWidth = (name: string) => {
+    setColumnWidths((current) => {
+      const next = { ...current };
+      delete next[name];
+      return next;
+    });
+  };
 
   const toggleColumn = (name: string) => {
     setPage(1);
@@ -205,19 +278,6 @@ export default function OdistsParsingPage() {
     } else {
       setSortBy(name);
       setSortDir("asc");
-    }
-  };
-
-  const applyFilters = () => {
-    setPage(1);
-    setAppliedFilters(filters);
-  };
-
-  const handleFilterKeyDown = (
-    event: ReactKeyboardEvent<HTMLInputElement>
-  ) => {
-    if (event.key === "Enter" && !event.ctrlKey && !event.metaKey) {
-      applyFilters();
     }
   };
 
@@ -333,7 +393,7 @@ export default function OdistsParsingPage() {
   const openValuePicker = (field: string) => {
     setValuePickerValues([]);
     setValuePickerSearch("");
-    setSelectedValues(parseSelectedValues(filters[field]));
+    setSelectedValues(parseSelectedValues(appliedFilters[field]));
     setValuePickerField(field);
   };
 
@@ -348,13 +408,12 @@ export default function OdistsParsingPage() {
 
   const applySelectedValues = () => {
     if (!valuePickerField) return;
-    const nextFilters = { ...filters };
+    const nextFilters = { ...appliedFilters };
     if (selectedValues.length) {
       nextFilters[valuePickerField] = `__IN__:${JSON.stringify(selectedValues)}`;
     } else {
       delete nextFilters[valuePickerField];
     }
-    setFilters(nextFilters);
     setAppliedFilters(nextFilters);
     setPage(1);
     setValuePickerField(null);
@@ -375,12 +434,13 @@ export default function OdistsParsingPage() {
     return (
       <td
         key={column.name}
-        className={`min-w-40 border-b p-1 align-top ${
+        className={`overflow-hidden border-b p-1 align-top ${
           changed ? "bg-amber-100 dark:bg-amber-950/40" : ""
         }`}
+        style={{ width: getColumnWidth(column.name) }}
       >
         <Input
-          className="h-8 min-w-36 border-transparent bg-transparent text-sm hover:border-input focus:border-input"
+          className="h-8 w-full min-w-0 border-transparent bg-transparent text-sm hover:border-input focus:border-input"
           value={value == null ? "" : String(value)}
           onChange={(event) =>
             setCellValue(row, column.name, event.target.value)
@@ -444,7 +504,7 @@ export default function OdistsParsingPage() {
       {showFields && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Pilih Kolom</CardTitle>
+            <CardTitle className="text-base">PILIH KOLOM</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <Input
@@ -464,7 +524,7 @@ export default function OdistsParsingPage() {
                     disabled={column.name === "id"}
                     onChange={() => toggleColumn(column.name)}
                   />
-                  {column.label}
+                  {displayColumnName(column.name)}
                 </label>
               ))}
             </div>
@@ -474,18 +534,25 @@ export default function OdistsParsingPage() {
 
       <Card>
         <CardContent className="space-y-3 pt-6">
-          <div className="flex flex-wrap items-end gap-2">
-            <Button onClick={applyFilters}>Terapkan Filter</Button>
+          <div className="flex flex-wrap items-center gap-3">
             <Button
               variant="outline"
+              disabled={!activeFilterCount}
               onClick={() => {
-                setFilters({});
                 setAppliedFilters({});
                 setPage(1);
               }}
             >
               Reset Filter
             </Button>
+            <span className="text-sm text-muted-foreground">
+              {activeFilterCount
+                ? `${activeFilterCount} filter aktif`
+                : "Tidak ada filter aktif"}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              Geser batas kanan header untuk resize kolom. Double-click untuk reset.
+            </span>
             <label className="ml-auto text-sm">
               Rows
               <select
@@ -513,60 +580,72 @@ export default function OdistsParsingPage() {
           )}
 
           <div className="max-h-[68vh] overflow-auto rounded-md border">
-            <table className="w-full border-collapse text-sm">
+            <table
+              className="border-collapse text-sm"
+              style={{ tableLayout: "fixed", width: totalTableWidth }}
+            >
+              <colgroup>
+                {visibleColumns.map((name) => (
+                  <col key={name} style={{ width: getColumnWidth(name) }} />
+                ))}
+              </colgroup>
               <thead className="sticky top-0 z-10 bg-background">
                 <tr>
                   {visibleColumns.map((name) => {
-                    const column = metadataMap.get(name);
-                    const chosenCount = parseSelectedValues(filters[name]).length;
+                    const chosenCount = parseSelectedValues(
+                      appliedFilters[name]
+                    ).length;
+                    const label = displayColumnName(name);
                     return (
                       <th
                         key={name}
-                        className="min-w-44 border-b p-2 text-left align-top"
+                        className="relative overflow-visible border-b p-2 text-left align-middle"
+                        style={{ width: getColumnWidth(name) }}
                       >
-                        <button
-                          className="text-sm font-semibold"
-                          onClick={() => toggleSort(name)}
-                        >
-                          {column?.label || name}
-                          {sortBy === name
-                            ? sortDir === "asc"
-                              ? " ▲"
-                              : " ▼"
-                            : ""}
-                        </button>
-                        <div className="mt-2 flex gap-1">
-                          <Input
-                            className="h-8 min-w-28 font-normal text-sm"
-                            placeholder={
-                              chosenCount
-                                ? `${chosenCount} value dipilih`
-                                : "Filter..."
-                            }
-                            value={
-                              filters[name]?.startsWith("__IN__:")
-                                ? ""
-                                : filters[name] || ""
-                            }
-                            onChange={(event) =>
-                              setFilters((current) => ({
-                                ...current,
-                                [name]: event.target.value,
-                              }))
-                            }
-                            onKeyDown={handleFilterKeyDown}
-                          />
+                        <div className="flex min-w-0 items-center gap-1 pr-1">
+                          <button
+                            type="button"
+                            className="min-w-0 flex-1 truncate text-left text-xs font-semibold tracking-wide"
+                            title={`Sort by ${label}`}
+                            onClick={() => toggleSort(name)}
+                          >
+                            {label}
+                            {sortBy === name
+                              ? sortDir === "asc"
+                                ? " ▲"
+                                : " ▼"
+                              : ""}
+                          </button>
                           <Button
                             type="button"
                             size="sm"
                             variant={chosenCount ? "default" : "outline"}
-                            className="h-8 px-2"
-                            title="Choose value"
+                            className="h-7 shrink-0 gap-1 px-2"
+                            title={`Filter ${label} by value`}
                             onClick={() => openValuePicker(name)}
                           >
-                            ⋯
+                            <Filter className="h-3.5 w-3.5" />
+                            {chosenCount > 0 && (
+                              <span className="text-[10px] font-bold">
+                                {chosenCount}
+                              </span>
+                            )}
                           </Button>
                         </div>
+                        <div
+                          role="separator"
+                          aria-orientation="vertical"
+                          title="Drag untuk resize. Double-click untuk reset."
+                          className="absolute right-0 top-0 z-20 h-full w-2 translate-x-1/2 cursor-col-resize select-none hover:bg-primary/30"
+                          onMouseDown={(event) =>
+                            beginColumnResize(event, name)
+                          }
+                          onDoubleClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            resetColumnWidth(name);
+                          }}
+                        />
                       </th>
                     );
                   })}
@@ -599,23 +678,29 @@ export default function OdistsParsingPage() {
                           if (column?.editable) {
                             return renderEditableCell(row, column);
                           }
+                          const title =
+                            row[name] == null ? "NULL" : String(row[name]);
                           return (
                             <td
                               key={name}
-                              className="whitespace-nowrap border-b p-2 align-top"
-                              title={
-                                row[name] == null ? "NULL" : String(row[name])
-                              }
+                              className="overflow-hidden border-b p-2 align-top"
+                              style={{ width: getColumnWidth(name) }}
                             >
-                              {renderValue(name, row[name])}
+                              <div
+                                className="truncate whitespace-nowrap"
+                                title={title}
+                              >
+                                {renderValue(name, row[name])}
+                              </div>
                               {name === "id" && dirty && (
-                                <div className="mt-2 flex items-center gap-2">
-                                  <span className="rounded-full bg-amber-200 px-2 py-1 text-xs font-medium text-amber-950 dark:bg-amber-900 dark:text-amber-100">
+                                <div className="mt-2 flex items-center gap-2 overflow-hidden">
+                                  <span className="shrink-0 rounded-full bg-amber-200 px-2 py-1 text-xs font-medium text-amber-950 dark:bg-amber-900 dark:text-amber-100">
                                     Changed
                                   </span>
                                   <Button
                                     size="sm"
                                     variant="outline"
+                                    className="shrink-0"
                                     onClick={() => cancelRow(row)}
                                     disabled={batchSaving}
                                   >
@@ -707,10 +792,10 @@ export default function OdistsParsingPage() {
                       <thead className="sticky top-0 z-10 bg-background shadow-sm">
                         <tr>
                           <th className="w-40 border-b p-3 text-left font-semibold">
-                            odists_id
+                            ODISTS ID
                           </th>
                           <th className="border-b p-3 text-left font-semibold">
-                            Fields to update
+                            FIELDS TO UPDATE
                           </th>
                         </tr>
                       </thead>
@@ -721,7 +806,9 @@ export default function OdistsParsingPage() {
                               {item.id}
                             </td>
                             <td className="border-b p-3 leading-6 text-muted-foreground">
-                              {Object.keys(item.values).join(", ")}
+                              {Object.keys(item.values)
+                                .map((field) => field.replace(/_/g, " ").toUpperCase())
+                                .join(", ")}
                             </td>
                           </tr>
                         ))}
@@ -765,11 +852,11 @@ export default function OdistsParsingPage() {
             <Card className="flex h-[min(760px,calc(100vh-3rem))] max-h-[calc(100vh-3rem)] w-full max-w-2xl flex-col overflow-hidden border bg-background shadow-2xl">
               <CardHeader className="shrink-0 border-b bg-background px-6 pb-4 pt-6">
                 <CardTitle className="text-xl leading-7">
-                  Choose Value: {metadataMap.get(valuePickerField)?.label || valuePickerField}
+                  FILTER BY VALUE: {displayColumnName(valuePickerField)}
                 </CardTitle>
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                  Pilih beberapa value. Pilihan tetap tersimpan saat Anda mencari
-                  value lain.
+                  Daftar value mengikuti filter aktif pada kolom lain, seperti
+                  filter Excel.
                 </p>
               </CardHeader>
 
@@ -778,7 +865,7 @@ export default function OdistsParsingPage() {
                   <Input
                     autoFocus
                     className="h-11 text-sm"
-                    placeholder="Ketik untuk mencari value..."
+                    placeholder="Cari value..."
                     value={valuePickerSearch}
                     onChange={(event) =>
                       setValuePickerSearch(event.target.value)
@@ -817,7 +904,7 @@ export default function OdistsParsingPage() {
                 <div className="mx-6 my-4 min-h-0 flex-1 overflow-auto rounded-lg border">
                   {valuePickerLoading ? (
                     <div className="p-6 text-center text-muted-foreground">
-                      Memuat value...
+                      Memuat value terkait...
                     </div>
                   ) : (
                     <table className="w-full text-sm">
@@ -825,10 +912,10 @@ export default function OdistsParsingPage() {
                         <tr>
                           <th className="w-12 border-b p-3"></th>
                           <th className="border-b p-3 text-left font-semibold">
-                            Value
+                            VALUE
                           </th>
                           <th className="w-28 border-b p-3 text-right font-semibold">
-                            Rows
+                            ROWS
                           </th>
                         </tr>
                       </thead>
@@ -880,7 +967,7 @@ export default function OdistsParsingPage() {
                               className="p-6 text-center text-muted-foreground"
                               colSpan={3}
                             >
-                              Value tidak ditemukan.
+                              Value terkait tidak ditemukan.
                             </td>
                           </tr>
                         )}
