@@ -111,6 +111,32 @@ def _build_where(
             where_parts.append(f"{quoted} IS NULL")
         elif value == "__EMPTY__":
             where_parts.append(f"COALESCE(CAST({quoted} AS CHAR), '') = ''")
+        elif value.startswith("__IN__:"):
+            try:
+                selected_values = json.loads(value[7:])
+            except json.JSONDecodeError as exc:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Format multi-value filter untuk field {field} tidak valid",
+                ) from exc
+
+            if not isinstance(selected_values, list):
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Multi-value filter untuk field {field} harus berupa list",
+                )
+
+            or_parts: List[str] = []
+            for value_index, selected_value in enumerate(selected_values):
+                if selected_value is None:
+                    or_parts.append(f"{quoted} IS NULL")
+                else:
+                    multi_key = f"filter_{index}_{value_index}"
+                    or_parts.append(f"{quoted} = :{multi_key}")
+                    params[multi_key] = selected_value
+
+            if or_parts:
+                where_parts.append(f"({' OR '.join(or_parts)})")
         elif value.startswith("__EQ__:"):
             where_parts.append(f"{quoted} = :{key}")
             params[key] = value[7:]
