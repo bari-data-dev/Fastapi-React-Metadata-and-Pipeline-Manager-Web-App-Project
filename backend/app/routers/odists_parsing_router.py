@@ -44,6 +44,7 @@ def get_odists_page(
 def get_distinct_values(
     field: str,
     search: str | None = None,
+    filters: str | None = None,
     limit: int = Query(100, ge=1, le=200),
     mysql_db: Session = Depends(get_mysql_pipeline_session),
     _: AppUser = Depends(get_current_user),
@@ -52,6 +53,7 @@ def get_distinct_values(
         db=mysql_db,
         field=field,
         search=search,
+        filters_json=filters,
         limit=limit,
     )
     return ApiResponse(success=True, data=values)
@@ -92,4 +94,8 @@ def update_odist(
         values=payload.values,
         current_user=current_user,
     )
-    return ApiResponse(success=True, data=updated, message="Data ODIST berhasil diperbarui")
+    return ApiResponse(
+        success=True,
+        data=updated,
+        message="Data ODIST berhasil diperbarui",
+    )
