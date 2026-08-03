@@ -13,6 +13,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import LoginPage from "./pages/LoginPage";
 import Index from "./pages/Index";
 import OdistsParsingPage from "./pages/metadata/OdistsParsingPage";
+import ParsingReportPage from "./pages/reports/ParsingReportPage";
 import UsersPage from "./pages/admin/UsersPage";
 
 const queryClient = new QueryClient();
@@ -42,6 +43,7 @@ function ProtectedContent() {
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/metadata/odists-parsing" element={<OdistsParsingPage />} />
+              <Route path="/reports/parsing" element={<ParsingReportPage />} />
               <Route path="/admin/users" element={<UsersPage />} />
               <Route path="*" element={<Navigate to="/metadata/odists-parsing" replace />} />
             </Routes>
