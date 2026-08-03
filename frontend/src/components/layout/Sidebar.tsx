@@ -14,8 +14,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 
-
-const DASHBOARD_URL = "https://dashboard.galenium.com/reports/powerbi/CALL%20REPORT/Call%20Report%202025%20Final";
+const DASHBOARD_URL = "https://dashboard.galenium.com/reports/browse";
 
 export function AppSidebar() {
   const { state, toggleSidebar } = useSidebar();
@@ -35,6 +34,10 @@ export function AppSidebar() {
       : "hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
   );
 
+  const collapseAfterNavigation = () => {
+    if (!collapsed) toggleSidebar();
+  };
+
   return (
     <Sidebar className={cn("border-r border-sidebar-border transition-all duration-300", collapsed ? "w-16" : "w-64")} collapsible="icon">
       <div className="flex items-center justify-between p-4 border-b border-sidebar-border">
@@ -52,7 +55,7 @@ export function AppSidebar() {
               {items.map((item) => (
                 <SidebarMenuItem key={item.url}>
                   <SidebarMenuButton asChild>
-                    <NavLink to={item.url} className={navClass(item.url)}>
+                    <NavLink to={item.url} className={navClass(item.url)} onClick={collapseAfterNavigation}>
                       <item.icon className={cn("h-4 w-4 shrink-0", collapsed ? "mx-auto" : "mr-3")} />
                       {!collapsed && <span>{item.title}</span>}
                     </NavLink>
@@ -69,7 +72,7 @@ export function AppSidebar() {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
-                  <a href={DASHBOARD_URL} target="_blank" rel="noopener noreferrer" className="w-full hover:bg-sidebar-accent/50">
+                  <a href={DASHBOARD_URL} target="_blank" rel="noopener noreferrer" className="w-full hover:bg-sidebar-accent/50" onClick={collapseAfterNavigation}>
                     <BarChart3 className={cn("h-4 w-4 shrink-0", collapsed ? "mx-auto" : "mr-3")} />
                     {!collapsed && <span>Dashboard</span>}
                   </a>
