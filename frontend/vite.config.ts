@@ -3,7 +3,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 
-const SERVER_IP = "192.100.38.52"; // ganti sesuai IP server kamu
+const SERVER_IP = "192.100.38.67"; // ganti sesuai IP server kamu
 
 export default defineConfig(({ mode }) => ({
   server: {

@@ -24,7 +24,7 @@ import type {
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Langsung hardcode BASE URL sesuai permintaan (tidak memakai file env)
-const API_BASE_URL = "http://192.100.38.52:8000/api";
+const API_BASE_URL = "http://192.100.38.67:8000/api";
 
 async function httpFetch<T>(
   input: RequestInfo,
