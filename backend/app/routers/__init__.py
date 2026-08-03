@@ -8,6 +8,9 @@ from .integration_dependencies_router import router as integration_dependencies_
 from .mv_refresh_router import router as mv_refresh_router
 from .audit_log_router import router as audit_log_router
 from .bronze_mapping_kowil_router import router as bronze_mapping_kowil_router
+from .auth_router import router as auth_router
+from .odists_parsing_router import router as odists_parsing_router
+
 
 all_routers = [
     client_router,
@@ -20,4 +23,6 @@ all_routers = [
     mv_refresh_router,
     audit_log_router,
     bronze_mapping_kowil_router,
+    auth_router,
+    odists_parsing_router,
 ]
