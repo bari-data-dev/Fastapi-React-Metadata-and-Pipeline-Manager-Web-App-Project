@@ -20,7 +20,6 @@ import TransformationsPage from "./pages/metadata/TransformationsPage";
 import IntegrationsPage from "./pages/metadata/IntegrationsPage";
 import IntegrationDependenciesPage from "./pages/metadata/IntegrationDependenciesPage";
 import MvRefreshPage from "./pages/metadata/MvRefreshPage";
-import BronzeMappingKowilPage from "./pages/metadata/BronzeMappingKowilPage";
 import OdistsParsingPage from "./pages/metadata/OdistsParsingPage";
 import UsersPage from "./pages/admin/UsersPage";
 import FileAuditPage from "./pages/audit/FileAuditPage";
@@ -56,7 +55,7 @@ function ProtectedLayout() {
                 <Route path="/metadata/integrations" element={<IntegrationsPage />} />
                 <Route path="/metadata/integration-dependencies" element={<IntegrationDependenciesPage />} />
                 <Route path="/metadata/mv-refresh" element={<MvRefreshPage />} />
-                <Route path="/metadata/bronze-mapping-kowil" element={<BronzeMappingKowilPage />} />
+                <Route path="/metadata/bronze-mapping-kowil" element={<Navigate to="/metadata/odists-parsing" replace />} />
                 <Route path="/metadata/odists-parsing" element={<OdistsParsingPage />} />
                 <Route path="/admin/users" element={<UsersPage />} />
                 <Route path="/audit/files" element={<FileAuditPage />} />
