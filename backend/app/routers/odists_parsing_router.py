@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlmodel import Session
 
 from app.core.auth_dependencies import get_current_user
-from app.db.database import get_session
+from app.db.database import get_mysql_pipeline_session, get_session
 from app.models.app_user import AppUser
 from app.schemas.odists_parsing import OdistsPage, OdistsUpdateRequest
 from app.services import odists_parsing_service
@@ -20,11 +20,11 @@ def get_odists_page(
     filters: str | None = None,
     sort_by: str = "id",
     sort_dir: str = Query("asc", regex="^(asc|desc)$"),
-    db: Session = Depends(get_session),
+    mysql_db: Session = Depends(get_mysql_pipeline_session),
     _: AppUser = Depends(get_current_user),
 ):
     data = odists_parsing_service.get_page(
-        db=db,
+        db=mysql_db,
         page=page,
         page_size=page_size,
         columns_csv=columns,
@@ -35,15 +35,34 @@ def get_odists_page(
     return ApiResponse(success=True, data=OdistsPage(**data))
 
 
+@router.get("/values/{field}", response_model=ApiResponse[list[dict]])
+def get_distinct_values(
+    field: str,
+    search: str | None = None,
+    limit: int = Query(100, ge=1, le=200),
+    mysql_db: Session = Depends(get_mysql_pipeline_session),
+    _: AppUser = Depends(get_current_user),
+):
+    values = odists_parsing_service.get_distinct_values(
+        db=mysql_db,
+        field=field,
+        search=search,
+        limit=limit,
+    )
+    return ApiResponse(success=True, data=values)
+
+
 @router.put("/{odist_id}", response_model=ApiResponse[dict])
 def update_odist(
     odist_id: int,
     payload: OdistsUpdateRequest,
-    db: Session = Depends(get_session),
+    mysql_db: Session = Depends(get_mysql_pipeline_session),
+    audit_db: Session = Depends(get_session),
     current_user: AppUser = Depends(get_current_user),
 ):
     updated = odists_parsing_service.update_row(
-        db=db,
+        mysql_db=mysql_db,
+        audit_db=audit_db,
         odist_id=odist_id,
         values=payload.values,
         current_user=current_user,
