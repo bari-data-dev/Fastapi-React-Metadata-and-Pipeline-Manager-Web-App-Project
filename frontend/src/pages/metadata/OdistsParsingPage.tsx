@@ -153,6 +153,10 @@ export default function OdistsParsingPage() {
     const id = rowId(row);
     const changed = getChangedValues(row);
     if (!Object.keys(changed).length) return;
+
+    const confirmed = window.confirm(`Are you sure you want to save changes for odists_id ${row.id}?`);
+    if (!confirmed) return;
+
     setSavingRows((current) => ({ ...current, [id]: true }));
     setError("");
     try {
