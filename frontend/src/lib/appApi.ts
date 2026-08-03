@@ -50,6 +50,83 @@ export type OdistsBatchUpdateResult = {
   updated_ids: number[];
 };
 
+export type ParsingMemberOption = {
+  user_id: number | null;
+  member_name: string;
+  username: string;
+};
+
+export type ParsingMemberSummary = ParsingMemberOption & {
+  active_parsing_rows: number;
+  active_revision_rows: number;
+  active_parsing_revision_rows: number;
+  active_revised_fields: number;
+  total_edit_activities: number;
+  reverted_activities: number;
+  partial_revert_activities: number;
+};
+
+export type ParsingReportTotals = {
+  active_parsing_rows: number;
+  active_revision_rows: number;
+  active_parsing_revision_rows: number;
+  active_revised_fields: number;
+  total_edit_activities: number;
+  reverted_activities: number;
+  partial_revert_activities: number;
+};
+
+export type ParsingReportSummary = {
+  members: ParsingMemberSummary[];
+  member_options: ParsingMemberOption[];
+  totals: ParsingReportTotals;
+};
+
+export type ParsingEffectiveItem = {
+  odist_id: number;
+  member_user_id: number | null;
+  member_name: string;
+  username: string;
+  status: string;
+  global_status: string;
+  original_ogal_id: unknown;
+  current_ogal_id: unknown;
+  active_revision_fields: string[];
+  owned_revision_fields: string[];
+  owned_fields: string[];
+  cust_name?: unknown;
+  address?: unknown;
+  city?: unknown;
+  province?: unknown;
+  first_edited_at?: string | null;
+  last_edited_at?: string | null;
+  total_actions: number;
+  baseline_source: string;
+  is_untracked: boolean;
+};
+
+export type ParsingActivityItem = {
+  audit_id: number;
+  odist_id: number;
+  user_id: number;
+  member_name: string;
+  username: string;
+  change_type: string;
+  revert_state: string;
+  changed_fields: string[];
+  old_values: Record<string, unknown>;
+  new_values: Record<string, unknown>;
+  changed_at: string;
+};
+
+export type PagedResult<T> = {
+  items: T[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+};
+
 function getToken(): string | null {
   return localStorage.getItem("metadata_app_token");
 }
@@ -78,6 +155,16 @@ export async function appFetch<T>(
     throw new Error(detail);
   }
   return body as ApiResponse<T>;
+}
+
+function appendOptional(
+  query: URLSearchParams,
+  key: string,
+  value: string | number | null | undefined
+) {
+  if (value !== undefined && value !== null && String(value) !== "") {
+    query.set(key, String(value));
+  }
 }
 
 export const authApi = {
@@ -158,4 +245,62 @@ export const odistsApi = {
       method: "PUT",
       body: JSON.stringify({ items }),
     }),
+};
+
+export const parsingReportApi = {
+  summary: (params: {
+    dateFrom?: string;
+    dateTo?: string;
+    userId?: number | null;
+  }) => {
+    const query = new URLSearchParams();
+    appendOptional(query, "date_from", params.dateFrom);
+    appendOptional(query, "date_to", params.dateTo);
+    appendOptional(query, "user_id", params.userId);
+    return appFetch<ParsingReportSummary>(
+      `/parsing-report/summary?${query.toString()}`
+    );
+  },
+  effective: (params: {
+    page: number;
+    pageSize: number;
+    userId?: number | null;
+    status?: string;
+    search?: string;
+  }) => {
+    const query = new URLSearchParams({
+      page: String(params.page),
+      page_size: String(params.pageSize),
+    });
+    appendOptional(query, "user_id", params.userId);
+    appendOptional(query, "status", params.status);
+    appendOptional(query, "search", params.search);
+    return appFetch<PagedResult<ParsingEffectiveItem>>(
+      `/parsing-report/effective?${query.toString()}`
+    );
+  },
+  history: (params: {
+    page: number;
+    pageSize: number;
+    dateFrom?: string;
+    dateTo?: string;
+    userId?: number | null;
+    changeType?: string;
+    revertState?: string;
+    search?: string;
+  }) => {
+    const query = new URLSearchParams({
+      page: String(params.page),
+      page_size: String(params.pageSize),
+    });
+    appendOptional(query, "date_from", params.dateFrom);
+    appendOptional(query, "date_to", params.dateTo);
+    appendOptional(query, "user_id", params.userId);
+    appendOptional(query, "change_type", params.changeType);
+    appendOptional(query, "revert_state", params.revertState);
+    appendOptional(query, "search", params.search);
+    return appFetch<PagedResult<ParsingActivityItem>>(
+      `/parsing-report/history?${query.toString()}`
+    );
+  },
 };
