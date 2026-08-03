@@ -86,9 +86,15 @@ def _parse_filters(filters_json: str | None) -> Dict[str, Any]:
     try:
         filters = json.loads(filters_json) if filters_json else {}
     except json.JSONDecodeError as exc:
-        raise HTTPException(status_code=422, detail="Format filters harus berupa JSON object") from exc
+        raise HTTPException(
+            status_code=422,
+            detail="Format filters harus berupa JSON object",
+        ) from exc
     if not isinstance(filters, dict):
-        raise HTTPException(status_code=422, detail="Format filters harus berupa JSON object")
+        raise HTTPException(
+            status_code=422,
+            detail="Format filters harus berupa JSON object",
+        )
     return filters
 
 
@@ -144,7 +150,10 @@ def _build_where(
             where_parts.append(f"CAST({quoted} AS CHAR) LIKE :{key}")
             params[key] = f"%{value}%"
 
-    return (" WHERE " + " AND ".join(where_parts) if where_parts else "", params)
+    return (
+        " WHERE " + " AND ".join(where_parts) if where_parts else "",
+        params,
+    )
 
 
 def get_page(
@@ -159,7 +168,11 @@ def get_page(
     metadata = _column_metadata(db)
     allowed = {item["name"] for item in metadata}
 
-    requested = [part.strip() for part in (columns_csv or "").split(",") if part.strip()]
+    requested = [
+        part.strip()
+        for part in (columns_csv or "").split(",")
+        if part.strip()
+    ]
     selected = [name for name in requested if name in allowed]
     if not selected:
         selected = [name for name in DEFAULT_COLUMNS if name in allowed]
@@ -211,19 +224,36 @@ def get_distinct_values(
     db: Session,
     field: str,
     search: str | None,
+    filters_json: str | None,
     limit: int,
 ) -> List[Dict[str, Any]]:
     metadata = _column_metadata(db)
     allowed = {item["name"] for item in metadata}
     if field not in allowed:
-        raise HTTPException(status_code=422, detail="Field choose value tidak valid")
+        raise HTTPException(
+            status_code=422,
+            detail="Field choose value tidak valid",
+        )
+
+    filters = _parse_filters(filters_json)
+    related_filters = {
+        filter_field: filter_value
+        for filter_field, filter_value in filters.items()
+        if filter_field != field
+    }
+    where_sql, params = _build_where(related_filters, allowed)
+
+    if search:
+        search_condition = f"CAST({_quote(field)} AS CHAR) LIKE :value_search"
+        where_sql = (
+            f"{where_sql} AND {search_condition}"
+            if where_sql
+            else f" WHERE {search_condition}"
+        )
+        params["value_search"] = f"%{search}%"
 
     limit = min(max(limit, 1), 200)
-    params: Dict[str, Any] = {"limit": limit}
-    where_sql = ""
-    if search:
-        where_sql = f"WHERE CAST({_quote(field)} AS CHAR) LIKE :search"
-        params["search"] = f"%{search}%"
+    params["limit"] = limit
 
     rows = db.execute(
         text(
@@ -252,13 +282,22 @@ def update_rows(
     current_user: AppUser,
 ) -> Dict[str, Any]:
     if not items:
-        raise HTTPException(status_code=422, detail="Tidak ada perubahan yang dikirim")
+        raise HTTPException(
+            status_code=422,
+            detail="Tidak ada perubahan yang dikirim",
+        )
     if len(items) > 200:
-        raise HTTPException(status_code=422, detail="Maksimal 200 row dalam satu batch")
+        raise HTTPException(
+            status_code=422,
+            detail="Maksimal 200 row dalam satu batch",
+        )
 
     item_ids = [int(item["id"]) for item in items]
     if len(item_ids) != len(set(item_ids)):
-        raise HTTPException(status_code=422, detail="Terdapat odists_id duplikat dalam batch")
+        raise HTTPException(
+            status_code=422,
+            detail="Terdapat odists_id duplikat dalam batch",
+        )
 
     metadata = _column_metadata(mysql_db)
     editable = {item["name"] for item in metadata if item["editable"]}
@@ -293,10 +332,10 @@ def update_rows(
                 )
 
             changed_values: Dict[str, Any] = {}
-            for field, value in clean_values.items():
+            for changed_field, value in clean_values.items():
                 normalized = None if value == "" else value
-                if normalized != old_row.get(field):
-                    changed_values[field] = normalized
+                if normalized != old_row.get(changed_field):
+                    changed_values[changed_field] = normalized
 
             if not changed_values:
                 continue
@@ -307,9 +346,11 @@ def update_rows(
                 "status_upd": status_upd,
             }
             set_parts: List[str] = []
-            for index, (field, value) in enumerate(changed_values.items()):
+            for index, (changed_field, value) in enumerate(
+                changed_values.items()
+            ):
                 key = f"value_{index}"
-                set_parts.append(f"{_quote(field)} = :{key}")
+                set_parts.append(f"{_quote(changed_field)} = :{key}")
                 params[key] = value
 
             set_parts.extend(
@@ -335,10 +376,14 @@ def update_rows(
                     "user_id": current_user.user_id,
                     "username": current_user.username,
                     "changed_fields": json.dumps(
-                        list(changed_values.keys()), ensure_ascii=False
+                        list(changed_values.keys()),
+                        ensure_ascii=False,
                     ),
                     "old_values": json.dumps(
-                        {field: old_row.get(field) for field in changed_values},
+                        {
+                            changed_field: old_row.get(changed_field)
+                            for changed_field in changed_values
+                        },
                         ensure_ascii=False,
                         default=str,
                     ),
@@ -410,5 +455,8 @@ def update_row(
         {"id": odist_id},
     ).mappings().one_or_none()
     if updated is None:
-        raise HTTPException(status_code=404, detail="Data ODIST tidak ditemukan")
+        raise HTTPException(
+            status_code=404,
+            detail="Data ODIST tidak ditemukan",
+        )
     return dict(updated)
