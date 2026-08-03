@@ -28,27 +28,41 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-muted/20">
-      <section className="relative overflow-hidden py-16 lg:py-24">
-        <img src={dataAnalyticsBg} alt="" className="absolute inset-0 h-full w-full object-cover opacity-15" />
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/95 to-primary/75" />
+      <section className="relative overflow-hidden py-20 lg:py-32">
+        <img
+          src={dataAnalyticsBg}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+        <div className="absolute inset-0 bg-slate-950/60" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/25" />
+
         <div className="container relative z-10 mx-auto px-6">
-          <div className="max-w-3xl text-white">
-            <h1 className="text-4xl font-bold tracking-tight lg:text-5xl">Metadata & ODIST Parsing Manager</h1>
-            <p className="mt-5 max-w-2xl text-lg leading-8 text-white/90">
+          <div className="mx-auto max-w-4xl text-center text-white">
+            <h1 className="text-4xl font-bold leading-tight tracking-tight drop-shadow-lg lg:text-6xl">
+              Metadata & ODIST Parsing Manager
+            </h1>
+            <p className="mx-auto mt-6 max-w-3xl text-lg leading-8 text-white/90 drop-shadow-md lg:text-2xl">
               Aplikasi internal untuk proses parsing ODIST, pengelolaan user, dan pencatatan audit perubahan data.
             </p>
-            <p className="mt-4 text-sm text-white/75">
+            <p className="mt-5 text-sm font-medium text-white/75">
               Gunakan menu pada sidebar untuk membuka fitur yang sedang aktif.
             </p>
           </div>
         </div>
+
+        <div className="absolute left-10 top-20 h-16 w-16 rounded-full bg-white/10 blur-sm" />
+        <div className="absolute bottom-20 right-10 h-12 w-12 rounded-full bg-white/10 blur-sm" />
       </section>
 
       <section className="container mx-auto px-6 py-12">
-        <div className="mb-8">
+        <div className="mb-8 text-center">
           <h2 className="text-2xl font-bold">Fitur Aktif</h2>
-          <p className="mt-2 text-muted-foreground">Kartu berikut bersifat informatif dan tidak membuka halaman lain.</p>
+          <p className="mt-2 text-muted-foreground">
+            Kartu berikut bersifat informatif dan tidak membuka halaman lain.
+          </p>
         </div>
+
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           {features.map((feature) => (
             <Card key={feature.title} className="cursor-default">
@@ -61,7 +75,9 @@ const Index = () => {
                 </div>
               </CardHeader>
               <CardContent>
-                <CardDescription className="text-base leading-relaxed">{feature.description}</CardDescription>
+                <CardDescription className="text-base leading-relaxed">
+                  {feature.description}
+                </CardDescription>
               </CardContent>
             </Card>
           ))}
