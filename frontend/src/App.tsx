@@ -11,27 +11,8 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AuthProvider } from "@/contexts/AuthContext";
 import LoginPage from "./pages/LoginPage";
 import Index from "./pages/Index";
-import Dashboard from "./pages/Dashboard";
-import ClientsPage from "./pages/metadata/ClientsPage";
-import ConfigPage from "./pages/metadata/ConfigPage";
-import MappingPage from "./pages/metadata/MappingPage";
-import RequiredColumnsPage from "./pages/metadata/RequiredColumnsPage";
-import TransformationsPage from "./pages/metadata/TransformationsPage";
-import IntegrationsPage from "./pages/metadata/IntegrationsPage";
-import IntegrationDependenciesPage from "./pages/metadata/IntegrationDependenciesPage";
-import MvRefreshPage from "./pages/metadata/MvRefreshPage";
 import OdistsParsingPage from "./pages/metadata/OdistsParsingPage";
 import UsersPage from "./pages/admin/UsersPage";
-import FileAuditPage from "./pages/audit/FileAuditPage";
-import JobExecutionPage from "./pages/audit/JobExecutionPage";
-import MappingValidationPage from "./pages/audit/MappingValidationPage";
-import RowValidationPage from "./pages/audit/RowValidationPage";
-import LoadErrorsPage from "./pages/audit/LoadErrorsPage";
-import TransformationLogsPage from "./pages/audit/TransformationLogsPage";
-import IntegrationLogsPage from "./pages/audit/IntegrationLogsPage";
-import MvRefreshLogsPage from "./pages/audit/MvRefreshLogsPage";
-import NotFound from "./pages/NotFound";
-
 
 const queryClient = new QueryClient();
 
@@ -46,27 +27,9 @@ function ProtectedLayout() {
             <PageTransition>
               <Routes>
                 <Route path="/" element={<Index />} />
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/metadata/clients" element={<ClientsPage />} />
-                <Route path="/metadata/config" element={<ConfigPage />} />
-                <Route path="/metadata/mapping" element={<MappingPage />} />
-                <Route path="/metadata/required" element={<RequiredColumnsPage />} />
-                <Route path="/metadata/transform" element={<TransformationsPage />} />
-                <Route path="/metadata/integrations" element={<IntegrationsPage />} />
-                <Route path="/metadata/integration-dependencies" element={<IntegrationDependenciesPage />} />
-                <Route path="/metadata/mv-refresh" element={<MvRefreshPage />} />
-                <Route path="/metadata/bronze-mapping-kowil" element={<Navigate to="/metadata/odists-parsing" replace />} />
                 <Route path="/metadata/odists-parsing" element={<OdistsParsingPage />} />
                 <Route path="/admin/users" element={<UsersPage />} />
-                <Route path="/audit/files" element={<FileAuditPage />} />
-                <Route path="/audit/jobs" element={<JobExecutionPage />} />
-                <Route path="/audit/mapping" element={<MappingValidationPage />} />
-                <Route path="/audit/rows" element={<RowValidationPage />} />
-                <Route path="/audit/errors" element={<LoadErrorsPage />} />
-                <Route path="/audit/transform" element={<TransformationLogsPage />} />
-                <Route path="/audit/integration-logs" element={<IntegrationLogsPage />} />
-                <Route path="/audit/mv-refresh-logs" element={<MvRefreshLogsPage />} />
-                <Route path="*" element={<NotFound />} />
+                <Route path="*" element={<Navigate to="/metadata/odists-parsing" replace />} />
               </Routes>
             </PageTransition>
           </div>
