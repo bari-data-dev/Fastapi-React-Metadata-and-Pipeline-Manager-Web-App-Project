@@ -69,6 +69,11 @@ def get_activity_history(
     audit_db: Session = Depends(get_session),
     _: AppUser = Depends(get_current_user),
 ):
+    # Baseline harus selalu dibentuk dari seluruh histori, bukan hanya periode filter.
+    parsing_report_service.get_summary(
+        mysql_db=mysql_db,
+        audit_db=audit_db,
+    )
     data = parsing_report_service.get_activity_history(
         mysql_db=mysql_db,
         audit_db=audit_db,
