@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { BarChart3, ChevronLeft, ChevronRight, Database, LogOut, TableProperties, Users } from "lucide-react";
+import { BarChart3, ChevronLeft, ChevronRight, Database, TableProperties, Users } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -19,12 +19,11 @@ const DASHBOARD_URL = "https://dashboard.galenium.com/reports/powerbi/CALL%20REP
 
 export function AppSidebar() {
   const { state, toggleSidebar } = useSidebar();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const location = useLocation();
   const collapsed = state === "collapsed";
 
   const items = [
-    { title: "Bronze Mapping Kowil", url: "/metadata/bronze-mapping-kowil", icon: Users },
     { title: "ODIST Parsing", url: "/metadata/odists-parsing", icon: TableProperties },
     ...(user?.role === "ADMIN" ? [{ title: "User Management", url: "/admin/users", icon: Users }] : []),
   ];
@@ -78,18 +77,6 @@ export function AppSidebar() {
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup className="mt-auto">
-          {!collapsed && <div className="px-2 py-2 text-xs text-muted-foreground"><div className="font-medium text-foreground">{user?.full_name}</div><div>{user?.role}</div></div>}
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton onClick={logout} className="w-full">
-                <LogOut className={cn("h-4 w-4 shrink-0", collapsed ? "mx-auto" : "mr-3")} />
-                {!collapsed && <span>Logout</span>}
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>
     </Sidebar>
