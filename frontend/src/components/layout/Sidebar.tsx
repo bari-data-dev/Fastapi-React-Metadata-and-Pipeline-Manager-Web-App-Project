@@ -4,6 +4,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Database,
+  FileBarChart2,
   LogOut,
   TableProperties,
   Users,
@@ -127,6 +128,23 @@ export function AppSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <NavLink
+                    to="/reports/parsing"
+                    className={navClass("/reports/parsing")}
+                    onClick={closeMobileSidebar}
+                  >
+                    <FileBarChart2
+                      className={cn(
+                        "h-4 w-4 shrink-0",
+                        collapsed ? "mx-auto" : "mr-3"
+                      )}
+                    />
+                    {!collapsed && <span>Parsing Report</span>}
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
                   <a
