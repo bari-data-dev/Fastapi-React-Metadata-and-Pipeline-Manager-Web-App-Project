@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 
 class OdistsColumn(BaseModel):
     name: str
+    label: str
     data_type: str
     is_nullable: bool
     ordinal_position: int
