@@ -259,23 +259,96 @@ export default function OdistsParsingPage() {
         <div className="flex items-center justify-between text-sm"><span>Total {data?.total ?? 0} row</span><div className="flex items-center gap-2"><Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>Previous</Button><span>Page {data?.page ?? page} / {data?.total_pages ?? 1}</span><Button variant="outline" size="sm" disabled={page >= (data?.total_pages ?? 1)} onClick={() => setPage((value) => value + 1)}>Next</Button></div></div>
       </CardContent></Card>
 
-      {valuePickerField && <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-        <Card className="w-full max-w-2xl max-h-[88vh] flex flex-col shadow-xl">
-          <CardHeader className="pb-3"><CardTitle className="text-lg">Choose Value: {metadataMap.get(valuePickerField)?.label || valuePickerField}</CardTitle><p className="text-sm text-muted-foreground">Pilih beberapa value. Pilihan tetap tersimpan saat Anda mencari value lain.</p></CardHeader>
-          <CardContent className="space-y-4 overflow-hidden flex flex-col text-sm">
-            <Input autoFocus className="h-10 text-sm" placeholder="Ketik untuk mencari value..." value={valuePickerSearch} onChange={(event) => setValuePickerSearch(event.target.value)} />
-            <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/30 px-3 py-2"><span className="font-medium">{selectedValues.length} value dipilih</span><Button size="sm" variant="ghost" onClick={resetSelectedValues}>Reset pilihan</Button></div>
-            {selectedValues.length > 0 && <div className="flex flex-wrap gap-2 max-h-24 overflow-auto rounded-md border p-2 bg-background">{selectedValues.map((value) => <button key={valueKey(value)} type="button" onClick={() => toggleSelectedValue(value)} className="rounded-full border bg-muted px-3 py-1 text-xs hover:bg-muted/70">{value === null ? "NULL" : String(value)} ×</button>)}</div>}
-            <div className="border rounded-md overflow-auto max-h-[48vh]">
-              {valuePickerLoading ? <div className="p-5 text-center text-muted-foreground">Memuat value...</div> : <table className="w-full text-sm"><thead className="sticky top-0 bg-background"><tr><th className="w-12 p-3 border-b"></th><th className="text-left p-3 border-b font-semibold">Value</th><th className="text-right p-3 border-b w-28 font-semibold">Rows</th></tr></thead><tbody>{valuePickerValues.length ? valuePickerValues.map((item, index) => {
-                const checked = selectedValues.some((value) => valueKey(value) === valueKey(item.value as SelectedValue));
-                return <tr key={`${valueKey(item.value as SelectedValue)}-${index}`} className="hover:bg-muted/50 cursor-pointer" onClick={() => toggleSelectedValue(item.value as SelectedValue)}><td className="p-3 border-b text-center"><input type="checkbox" checked={checked} readOnly /></td><td className="p-3 border-b break-words">{item.value === null ? <span className="italic text-muted-foreground">NULL</span> : String(item.value)}</td><td className="p-3 border-b text-right tabular-nums">{item.row_count}</td></tr>;
-              }) : <tr><td className="p-5 text-center text-muted-foreground" colSpan={3}>Value tidak ditemukan.</td></tr>}</tbody></table>}
-            </div>
-            <div className="flex justify-between gap-2 pt-1"><Button variant="outline" onClick={resetSelectedValues}>Reset</Button><div className="flex gap-2"><Button variant="outline" onClick={() => setValuePickerField(null)}>Cancel</Button><Button onClick={applySelectedValues}>OK</Button></div></div>
-          </CardContent>
-        </Card>
-      </div>}
+      {valuePickerField && (
+        <div className="fixed inset-0 z-[100] overflow-y-auto bg-black/50 p-4 sm:p-6">
+          <div className="flex min-h-full items-start justify-center py-4 sm:items-center">
+            <Card className="flex h-[min(760px,calc(100vh-3rem))] max-h-[calc(100vh-3rem)] w-full max-w-2xl flex-col overflow-hidden border bg-background shadow-2xl">
+              <CardHeader className="shrink-0 border-b bg-background px-6 pb-4 pt-6">
+                <CardTitle className="text-xl leading-7">
+                  Choose Value: {metadataMap.get(valuePickerField)?.label || valuePickerField}
+                </CardTitle>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                  Pilih beberapa value. Pilihan tetap tersimpan saat Anda mencari value lain.
+                </p>
+              </CardHeader>
+
+              <CardContent className="flex min-h-0 flex-1 flex-col p-0 text-sm">
+                <div className="shrink-0 space-y-3 border-b bg-background px-6 py-4">
+                  <Input
+                    autoFocus
+                    className="h-11 text-sm"
+                    placeholder="Ketik untuk mencari value..."
+                    value={valuePickerSearch}
+                    onChange={(event) => setValuePickerSearch(event.target.value)}
+                  />
+
+                  <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/30 px-4 py-3">
+                    <span className="font-medium">{selectedValues.length} value dipilih</span>
+                    <Button size="sm" variant="ghost" onClick={resetSelectedValues}>Reset pilihan</Button>
+                  </div>
+
+                  {selectedValues.length > 0 && (
+                    <div className="flex max-h-24 flex-wrap gap-2 overflow-auto rounded-lg border bg-background p-3">
+                      {selectedValues.map((value) => (
+                        <button
+                          key={valueKey(value)}
+                          type="button"
+                          onClick={() => toggleSelectedValue(value)}
+                          className="rounded-full border bg-muted px-3 py-1.5 text-xs font-medium hover:bg-muted/70"
+                        >
+                          {value === null ? "NULL" : String(value)} ×
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="mx-6 my-4 min-h-0 flex-1 overflow-auto rounded-lg border">
+                  {valuePickerLoading ? (
+                    <div className="p-6 text-center text-muted-foreground">Memuat value...</div>
+                  ) : (
+                    <table className="w-full text-sm">
+                      <thead className="sticky top-0 z-10 bg-background shadow-sm">
+                        <tr>
+                          <th className="w-12 border-b p-3"></th>
+                          <th className="border-b p-3 text-left font-semibold">Value</th>
+                          <th className="w-28 border-b p-3 text-right font-semibold">Rows</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {valuePickerValues.length ? valuePickerValues.map((item, index) => {
+                          const checked = selectedValues.some((value) => valueKey(value) === valueKey(item.value as SelectedValue));
+                          return (
+                            <tr
+                              key={`${valueKey(item.value as SelectedValue)}-${index}`}
+                              className="cursor-pointer hover:bg-muted/50"
+                              onClick={() => toggleSelectedValue(item.value as SelectedValue)}
+                            >
+                              <td className="border-b p-3 text-center"><input type="checkbox" checked={checked} readOnly /></td>
+                              <td className="break-words border-b p-3 leading-6">{item.value === null ? <span className="italic text-muted-foreground">NULL</span> : String(item.value)}</td>
+                              <td className="border-b p-3 text-right tabular-nums">{item.row_count}</td>
+                            </tr>
+                          );
+                        }) : (
+                          <tr><td className="p-6 text-center text-muted-foreground" colSpan={3}>Value tidak ditemukan.</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+
+                <div className="flex shrink-0 justify-between gap-3 border-t bg-background px-6 py-4">
+                  <Button variant="outline" onClick={resetSelectedValues}>Reset</Button>
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => setValuePickerField(null)}>Cancel</Button>
+                    <Button onClick={applySelectedValues}>OK</Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
