@@ -74,6 +74,11 @@ export const authApi = {
       body: JSON.stringify({ username, password }),
     }),
   me: () => appFetch<AppUser>("/auth/me"),
+  orchestratorAccess: (password: string) =>
+    appFetch<{ url: string }>("/auth/orchestrator-access", {
+      method: "POST",
+      body: JSON.stringify({ password }),
+    }),
   users: () => appFetch<AppUser[]>("/auth/users"),
   createUser: (payload: {
     username: string;
