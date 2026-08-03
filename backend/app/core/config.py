@@ -60,6 +60,9 @@ class Settings:
     JWT_ALGORITHM: str
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int
 
+    ORCHESTRATOR_PASSWORD: str
+    PREFECT_UI_URL: str
+
     def __init__(self):
         self.DB_HOST = os.getenv("DB_HOST") or os.getenv("MSSQL_SERVER") or "localhost"
         self.DB_PORT = int(os.getenv("DB_PORT") or os.getenv("MSSQL_PORT") or 1433)
@@ -101,6 +104,12 @@ class Settings:
             raise RuntimeError(
                 "JWT_SECRET_KEY belum dikonfigurasi pada environment atau file .env"
             )
+
+        self.ORCHESTRATOR_PASSWORD = os.getenv("ORCHESTRATOR_PASSWORD", "")
+        self.PREFECT_UI_URL = os.getenv(
+            "PREFECT_UI_URL",
+            "http://192.100.38.67:4200/",
+        )
 
     def _detect_odbc_drivers(self) -> List[str]:
         try:
