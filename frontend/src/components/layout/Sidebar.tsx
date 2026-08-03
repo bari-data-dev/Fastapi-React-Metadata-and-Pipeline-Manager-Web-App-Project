@@ -25,14 +25,20 @@ import { cn } from "@/lib/utils";
 const DASHBOARD_URL = "https://dashboard.galenium.com/reports/browse";
 
 export function AppSidebar() {
-  const { state, toggleSidebar } = useSidebar();
+  const { state, toggleSidebar, isMobile, setOpenMobile } = useSidebar();
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const collapsed = state === "collapsed";
+
+  // Mobile memakai drawer penuh. State collapse hanya berlaku di desktop.
+  const collapsed = !isMobile && state === "collapsed";
 
   const items = [
-    { title: "ODIST Parsing", url: "/metadata/odists-parsing", icon: TableProperties },
+    {
+      title: "ODIST Parsing",
+      url: "/metadata/odists-parsing",
+      icon: TableProperties,
+    },
     ...(user?.role === "ADMIN"
       ? [{ title: "User Management", url: "/admin/users", icon: Users }]
       : []),
@@ -46,7 +52,12 @@ export function AppSidebar() {
         : "hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
     );
 
+  const closeMobileSidebar = () => {
+    if (isMobile) setOpenMobile(false);
+  };
+
   const handleLogout = () => {
+    if (isMobile) setOpenMobile(false);
     logout();
     navigate("/login", { replace: true });
   };
@@ -59,17 +70,18 @@ export function AppSidebar() {
       )}
       collapsible="icon"
     >
-      <div className="flex items-center justify-between p-4 border-b border-sidebar-border">
+      <div className="flex min-h-16 items-center justify-between gap-2 border-b border-sidebar-border p-4">
         {!collapsed && (
-          <div className="flex items-center gap-2 min-w-0">
+          <div className="flex min-w-0 items-center gap-2">
             <Database className="h-6 w-6 shrink-0" />
-            <span className="font-bold truncate">Metadata Manager</span>
+            <span className="truncate font-bold">Metadata Manager</span>
           </div>
         )}
         <button
+          type="button"
           onClick={toggleSidebar}
-          className="p-1 rounded-md hover:bg-sidebar-accent"
-          aria-label="Toggle sidebar"
+          className="ml-auto rounded-md p-2 hover:bg-sidebar-accent"
+          aria-label={isMobile ? "Tutup sidebar" : "Toggle sidebar"}
         >
           {collapsed ? (
             <ChevronRight className="h-4 w-4" />
@@ -89,7 +101,11 @@ export function AppSidebar() {
               {items.map((item) => (
                 <SidebarMenuItem key={item.url}>
                   <SidebarMenuButton asChild>
-                    <NavLink to={item.url} className={navClass(item.url)}>
+                    <NavLink
+                      to={item.url}
+                      className={navClass(item.url)}
+                      onClick={closeMobileSidebar}
+                    >
                       <item.icon
                         className={cn(
                           "h-4 w-4 shrink-0",
@@ -118,6 +134,7 @@ export function AppSidebar() {
                     target="_blank"
                     rel="noopener noreferrer"
                     className="w-full hover:bg-sidebar-accent/50"
+                    onClick={closeMobileSidebar}
                   >
                     <BarChart3
                       className={cn(
@@ -136,7 +153,7 @@ export function AppSidebar() {
 
       <div className="mt-auto border-t border-sidebar-border p-2">
         {!collapsed && (
-          <div className="px-2 py-2 min-w-0">
+          <div className="min-w-0 px-2 py-2">
             <div className="truncate text-sm font-medium text-foreground">
               {user?.full_name || user?.username || "User"}
             </div>
