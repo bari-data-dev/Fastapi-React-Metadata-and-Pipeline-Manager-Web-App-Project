@@ -54,7 +54,10 @@ function getToken(): string | null {
   return localStorage.getItem("metadata_app_token");
 }
 
-export async function appFetch<T>(path: string, init: RequestInit = {}): Promise<ApiResponse<T>> {
+export async function appFetch<T>(
+  path: string,
+  init: RequestInit = {}
+): Promise<ApiResponse<T>> {
   const token = getToken();
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
@@ -79,10 +82,13 @@ export async function appFetch<T>(path: string, init: RequestInit = {}): Promise
 
 export const authApi = {
   login: (username: string, password: string) =>
-    appFetch<{ access_token: string; token_type: string; user: AppUser }>("/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ username, password }),
-    }),
+    appFetch<{ access_token: string; token_type: string; user: AppUser }>(
+      "/auth/login",
+      {
+        method: "POST",
+        body: JSON.stringify({ username, password }),
+      }
+    ),
   me: () => appFetch<AppUser>("/auth/me"),
   orchestratorAccess: (password: string) =>
     appFetch<{ url: string }>("/auth/orchestrator-access", {
@@ -96,9 +102,16 @@ export const authApi = {
     full_name: string;
     role: "ADMIN" | "PARSER";
     is_active: boolean;
-  }) => appFetch<AppUser>("/auth/users", { method: "POST", body: JSON.stringify(payload) }),
+  }) =>
+    appFetch<AppUser>("/auth/users", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
   updateUser: (userId: number, payload: Record<string, unknown>) =>
-    appFetch<AppUser>(`/auth/users/${userId}`, { method: "PUT", body: JSON.stringify(payload) }),
+    appFetch<AppUser>(`/auth/users/${userId}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
 };
 
 export const odistsApi = {
@@ -120,8 +133,16 @@ export const odistsApi = {
     });
     return appFetch<OdistsPage>(`/odists-parsing?${query.toString()}`);
   },
-  getDistinctValues: (field: string, search = "", limit = 100) => {
-    const query = new URLSearchParams({ limit: String(limit) });
+  getDistinctValues: (
+    field: string,
+    search = "",
+    limit = 100,
+    filters: Record<string, string> = {}
+  ) => {
+    const query = new URLSearchParams({
+      limit: String(limit),
+      filters: JSON.stringify(filters),
+    });
     if (search) query.set("search", search);
     return appFetch<DistinctValue[]>(
       `/odists-parsing/values/${encodeURIComponent(field)}?${query.toString()}`
