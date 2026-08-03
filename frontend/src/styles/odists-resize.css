@@ -1,0 +1,20 @@
+[title="Drag untuk resize. Double-click untuk reset."]::before {
+  content: "";
+  position: absolute;
+  top: 0.35rem;
+  bottom: 0.35rem;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-50%);
+  background: hsl(var(--border));
+  box-shadow: 0 0 0 1px hsl(var(--background) / 0.55);
+  transition: width 120ms ease, background-color 120ms ease;
+  pointer-events: none;
+}
+
+[title="Drag untuk resize. Double-click untuk reset."]:hover::before,
+[title="Drag untuk resize. Double-click untuk reset."]:active::before {
+  width: 3px;
+  background: hsl(var(--primary));
+  box-shadow: none;
+}
