@@ -9,21 +9,19 @@ from sqlmodel import Session
 from app.models.app_user import AppUser
 
 
-TABLE_SCHEMA = "bronze_so"
-TABLE_NAME = "odists_parsing"
+TABLE_NAME = "gold_odists_parsing_manual"
 READ_ONLY_FIELDS = {
     "id",
-    "google_url_idx",
     "updated_by",
     "parsed_at",
     "updated_at",
+    "dwh_loaded_at",
     "dwh_refreshed_at",
     "status_upd",
 }
 DEFAULT_COLUMNS = [
     "id",
     "ogal_id",
-    "old_ogal_id",
     "dist_code",
     "cust_code",
     "cust_name",
@@ -34,7 +32,6 @@ DEFAULT_COLUMNS = [
     "kecamatan",
     "kota",
     "provinsi",
-    "batch",
     "status_upd",
     "updated_by",
     "parsed_at",
@@ -42,53 +39,86 @@ DEFAULT_COLUMNS = [
 ]
 
 
+def _quote(name: str) -> str:
+    return f"`{name.replace('`', '``')}`"
+
+
 def _column_metadata(db: Session) -> List[Dict[str, Any]]:
     rows = db.execute(
         text(
             """
             SELECT
-                c.COLUMN_NAME AS name,
-                c.DATA_TYPE AS data_type,
-                CASE WHEN c.IS_NULLABLE = 'YES' THEN 1 ELSE 0 END AS is_nullable,
-                c.ORDINAL_POSITION AS ordinal_position,
-                CASE WHEN cc.column_id IS NULL THEN 0 ELSE 1 END AS is_computed
-            FROM INFORMATION_SCHEMA.COLUMNS c
-            LEFT JOIN sys.schemas s
-                ON s.name = c.TABLE_SCHEMA
-            LEFT JOIN sys.tables t
-                ON t.schema_id = s.schema_id
-               AND t.name = c.TABLE_NAME
-            LEFT JOIN sys.computed_columns cc
-                ON cc.object_id = t.object_id
-               AND cc.name = c.COLUMN_NAME
-            WHERE c.TABLE_SCHEMA = :schema_name
-              AND c.TABLE_NAME = :table_name
-            ORDER BY c.ORDINAL_POSITION
+                COLUMN_NAME AS name,
+                DATA_TYPE AS data_type,
+                CASE WHEN IS_NULLABLE = 'YES' THEN 1 ELSE 0 END AS is_nullable,
+                ORDINAL_POSITION AS ordinal_position,
+                EXTRA AS extra
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = :table_name
+            ORDER BY ORDINAL_POSITION
             """
         ),
-        {"schema_name": TABLE_SCHEMA, "table_name": TABLE_NAME},
+        {"table_name": TABLE_NAME},
     ).mappings().all()
 
     if not rows:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Tabel [{TABLE_SCHEMA}].[{TABLE_NAME}] tidak ditemukan",
+            detail=f"Tabel {TABLE_NAME} tidak ditemukan pada database MySQL pipeline",
         )
 
     return [
         {
             "name": row["name"],
+            "label": "odists_id" if row["name"] == "id" else row["name"],
             "data_type": row["data_type"],
             "is_nullable": bool(row["is_nullable"]),
             "ordinal_position": row["ordinal_position"],
-            "editable": not bool(row["is_computed"]) and row["name"] not in READ_ONLY_FIELDS,
+            "editable": row["name"] not in READ_ONLY_FIELDS
+            and "GENERATED" not in str(row.get("extra") or "").upper(),
         }
         for row in rows
     ]
 
 
-def _quote(name: str) -> str:
-    return f"[{name.replace(']', ']]')}]"
+def _parse_filters(filters_json: str | None) -> Dict[str, Any]:
+    try:
+        filters = json.loads(filters_json) if filters_json else {}
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=422, detail="Format filters harus berupa JSON object") from exc
+    if not isinstance(filters, dict):
+        raise HTTPException(status_code=422, detail="Format filters harus berupa JSON object")
+    return filters
+
+
+def _build_where(
+    filters: Dict[str, Any],
+    allowed: set[str],
+) -> tuple[str, Dict[str, Any]]:
+    where_parts: List[str] = []
+    params: Dict[str, Any] = {}
+
+    for index, (field, raw_value) in enumerate(filters.items()):
+        if field not in allowed or raw_value is None or str(raw_value) == "":
+            continue
+
+        value = str(raw_value)
+        quoted = _quote(field)
+        key = f"filter_{index}"
+
+        if value == "__NULL__":
+            where_parts.append(f"{quoted} IS NULL")
+        elif value == "__EMPTY__":
+            where_parts.append(f"COALESCE(CAST({quoted} AS CHAR), '') = ''")
+        elif value.startswith("__EQ__:"):
+            where_parts.append(f"{quoted} = :{key}")
+            params[key] = value[7:]
+        else:
+            where_parts.append(f"CAST({quoted} AS CHAR) LIKE :{key}")
+            params[key] = f"%{value}%"
+
+    return (" WHERE " + " AND ".join(where_parts) if where_parts else "", params)
 
 
 def get_page(
@@ -110,58 +140,39 @@ def get_page(
     if "id" in allowed and "id" not in selected:
         selected.insert(0, "id")
 
-    try:
-        filters = json.loads(filters_json) if filters_json else {}
-    except json.JSONDecodeError as exc:
-        raise HTTPException(status_code=422, detail="Format filters harus berupa JSON object") from exc
-    if not isinstance(filters, dict):
-        raise HTTPException(status_code=422, detail="Format filters harus berupa JSON object")
+    filters = _parse_filters(filters_json)
+    where_sql, params = _build_where(filters, allowed)
 
-    where_parts: List[str] = []
-    params: Dict[str, Any] = {}
-    filter_index = 0
-    for field, raw_value in filters.items():
-        if field not in allowed or raw_value is None or str(raw_value) == "":
-            continue
-        value = str(raw_value)
-        quoted = _quote(field)
-        if value == "__NULL__":
-            where_parts.append(f"{quoted} IS NULL")
-        elif value == "__EMPTY__":
-            where_parts.append(f"ISNULL(CONVERT(NVARCHAR(MAX), {quoted}), '') = ''")
-        else:
-            key = f"filter_{filter_index}"
-            where_parts.append(f"CONVERT(NVARCHAR(MAX), {quoted}) LIKE :{key}")
-            params[key] = f"%{value}%"
-            filter_index += 1
-
-    where_sql = " WHERE " + " AND ".join(where_parts) if where_parts else ""
     safe_sort = sort_by if sort_by in allowed else "id"
     direction = "DESC" if sort_dir.lower() == "desc" else "ASC"
     page = max(page, 1)
     page_size = min(max(page_size, 1), 200)
     offset = (page - 1) * page_size
 
-    count_sql = text(
-        f"SELECT COUNT_BIG(1) FROM [{TABLE_SCHEMA}].[{TABLE_NAME}]{where_sql}"
+    total = int(
+        db.execute(
+            text(f"SELECT COUNT(*) FROM {_quote(TABLE_NAME)}{where_sql}"),
+            params,
+        ).scalar_one()
     )
-    total = int(db.execute(count_sql, params).scalar_one())
 
     data_params = dict(params)
     data_params.update({"offset": offset, "page_size": page_size})
-    select_sql = text(
-        f"""
-        SELECT {', '.join(_quote(name) for name in selected)}
-        FROM [{TABLE_SCHEMA}].[{TABLE_NAME}]
-        {where_sql}
-        ORDER BY {_quote(safe_sort)} {direction}
-        OFFSET :offset ROWS FETCH NEXT :page_size ROWS ONLY
-        """
-    )
-    items = [dict(row) for row in db.execute(select_sql, data_params).mappings().all()]
+    rows = db.execute(
+        text(
+            f"""
+            SELECT {', '.join(_quote(name) for name in selected)}
+            FROM {_quote(TABLE_NAME)}
+            {where_sql}
+            ORDER BY {_quote(safe_sort)} {direction}
+            LIMIT :page_size OFFSET :offset
+            """
+        ),
+        data_params,
+    ).mappings().all()
 
     return {
-        "items": items,
+        "items": [dict(row) for row in rows],
         "total": total,
         "page": page,
         "page_size": page_size,
@@ -170,52 +181,107 @@ def get_page(
     }
 
 
-def update_row(
+def get_distinct_values(
     db: Session,
+    field: str,
+    search: str | None,
+    limit: int,
+) -> List[Dict[str, Any]]:
+    metadata = _column_metadata(db)
+    allowed = {item["name"] for item in metadata}
+    if field not in allowed:
+        raise HTTPException(status_code=422, detail="Field choose value tidak valid")
+
+    limit = min(max(limit, 1), 200)
+    params: Dict[str, Any] = {"limit": limit}
+    where_sql = ""
+    if search:
+        where_sql = f"WHERE CAST({_quote(field)} AS CHAR) LIKE :search"
+        params["search"] = f"%{search}%"
+
+    rows = db.execute(
+        text(
+            f"""
+            SELECT {_quote(field)} AS value, COUNT(*) AS row_count
+            FROM {_quote(TABLE_NAME)}
+            {where_sql}
+            GROUP BY {_quote(field)}
+            ORDER BY row_count DESC, {_quote(field)} ASC
+            LIMIT :limit
+            """
+        ),
+        params,
+    ).mappings().all()
+
+    return [
+        {"value": row["value"], "row_count": int(row["row_count"])}
+        for row in rows
+    ]
+
+
+def update_row(
+    mysql_db: Session,
+    audit_db: Session,
     odist_id: int,
     values: Dict[str, Any],
     current_user: AppUser,
 ) -> Dict[str, Any]:
-    metadata = _column_metadata(db)
+    metadata = _column_metadata(mysql_db)
     editable = {item["name"] for item in metadata if item["editable"]}
     clean_values = {key: value for key, value in values.items() if key in editable}
     if not clean_values:
         raise HTTPException(status_code=422, detail="Tidak ada field editable yang dikirim")
 
-    old_row = db.execute(
-        text(f"SELECT * FROM [{TABLE_SCHEMA}].[{TABLE_NAME}] WHERE [id] = :id"),
+    old_row = mysql_db.execute(
+        text(f"SELECT * FROM {_quote(TABLE_NAME)} WHERE `id` = :id"),
         {"id": odist_id},
     ).mappings().one_or_none()
     if old_row is None:
         raise HTTPException(status_code=404, detail="Data ODIST tidak ditemukan")
 
+    changed_values: Dict[str, Any] = {}
+    for field, value in clean_values.items():
+        normalized = None if value == "" else value
+        if normalized != old_row.get(field):
+            changed_values[field] = normalized
+
+    if not changed_values:
+        return dict(old_row)
+
+    params: Dict[str, Any] = {
+        "id": odist_id,
+        "updated_by": current_user.user_id,
+    }
     set_parts: List[str] = []
-    params: Dict[str, Any] = {"id": odist_id, "updated_by": current_user.user_id}
-    for index, (field, value) in enumerate(clean_values.items()):
+    for index, (field, value) in enumerate(changed_values.items()):
         key = f"value_{index}"
         set_parts.append(f"{_quote(field)} = :{key}")
         params[key] = value
 
     set_parts.extend(
         [
-            "[updated_at] = SYSDATETIME()",
-            "[parsed_at] = SYSDATETIME()",
-            "[status_upd] = 'UPDATED'",
-            "[updated_by] = :updated_by",
+            "`updated_at` = CURRENT_TIMESTAMP",
+            "`parsed_at` = CURRENT_TIMESTAMP",
+            "`status_upd` = 'UPDATED'",
+            "`updated_by` = :updated_by",
         ]
     )
 
     try:
-        db.execute(
+        mysql_db.execute(
             text(
-                f"UPDATE [{TABLE_SCHEMA}].[{TABLE_NAME}] SET {', '.join(set_parts)} WHERE [id] = :id"
+                f"UPDATE {_quote(TABLE_NAME)} SET {', '.join(set_parts)} WHERE `id` = :id"
             ),
             params,
         )
+        mysql_db.commit()
+    except Exception:
+        mysql_db.rollback()
+        raise
 
-        old_values = {field: old_row.get(field) for field in clean_values}
-        new_values = clean_values
-        db.execute(
+    old_values = {field: old_row.get(field) for field in changed_values}
+    try:
+        audit_db.execute(
             text(
                 """
                 INSERT INTO [tools].[odists_parsing_audit_log]
@@ -228,18 +294,21 @@ def update_row(
                 "odist_id": odist_id,
                 "user_id": current_user.user_id,
                 "username": current_user.username,
-                "changed_fields": json.dumps(list(clean_values.keys()), ensure_ascii=False),
+                "changed_fields": json.dumps(list(changed_values.keys()), ensure_ascii=False),
                 "old_values": json.dumps(old_values, ensure_ascii=False, default=str),
-                "new_values": json.dumps(new_values, ensure_ascii=False, default=str),
+                "new_values": json.dumps(changed_values, ensure_ascii=False, default=str),
             },
         )
-        db.commit()
+        audit_db.commit()
     except Exception:
-        db.rollback()
-        raise
+        audit_db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Data ODIST berhasil diperbarui, tetapi pencatatan audit gagal",
+        )
 
-    updated = db.execute(
-        text(f"SELECT * FROM [{TABLE_SCHEMA}].[{TABLE_NAME}] WHERE [id] = :id"),
+    updated = mysql_db.execute(
+        text(f"SELECT * FROM {_quote(TABLE_NAME)} WHERE `id` = :id"),
         {"id": odist_id},
     ).mappings().one()
     return dict(updated)
