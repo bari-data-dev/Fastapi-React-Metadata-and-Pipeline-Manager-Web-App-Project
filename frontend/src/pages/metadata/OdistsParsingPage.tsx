@@ -1,11 +1,46 @@
-import { KeyboardEvent, useEffect, useMemo, useState } from "react";
-import { odistsApi, OdistsColumn, OdistsPage, DistinctValue } from "@/lib/appApi";
+import {
+  KeyboardEvent as ReactKeyboardEvent,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import {
+  DistinctValue,
+  odistsApi,
+  OdistsBatchUpdateItem,
+  OdistsColumn,
+  OdistsPage,
+} from "@/lib/appApi";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
-const DEFAULT_COLUMNS = ["id", "ogal_id", "dist_code", "cust_code", "cust_name", "address", "type_outlet", "city", "province", "kecamatan", "kota", "provinsi", "status_upd", "updated_by", "parsed_at", "dwh_refreshed_at"];
-const DATE_FIELDS = new Set(["created_at", "updated_at", "parsed_at", "dwh_loaded_at", "dwh_refreshed_at"]);
+const DEFAULT_COLUMNS = [
+  "id",
+  "ogal_id",
+  "dist_code",
+  "cust_code",
+  "cust_name",
+  "address",
+  "type_outlet",
+  "city",
+  "province",
+  "kecamatan",
+  "kota",
+  "provinsi",
+  "status_upd",
+  "updated_by",
+  "parsed_at",
+  "dwh_refreshed_at",
+];
+
+const DATE_FIELDS = new Set([
+  "created_at",
+  "updated_at",
+  "parsed_at",
+  "dwh_loaded_at",
+  "dwh_refreshed_at",
+]);
 
 type SelectedValue = string | number | null;
 
@@ -13,11 +48,21 @@ function formatDate(value: unknown) {
   if (!value) return "-";
   const date = new Date(String(value));
   if (Number.isNaN(date.getTime())) return String(value);
-  return new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).format(date);
+  return new Intl.DateTimeFormat("id-ID", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).format(date);
 }
 
 function renderValue(field: string, value: unknown) {
-  if (value === null || value === undefined) return <span className="italic text-muted-foreground">NULL</span>;
+  if (value === null || value === undefined) {
+    return <span className="italic text-muted-foreground">NULL</span>;
+  }
   if (DATE_FIELDS.has(field)) return formatDate(value);
   const text = String(value);
   return text.length > 80 ? `${text.slice(0, 80)}...` : text;
@@ -54,8 +99,12 @@ export default function OdistsParsingPage() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [draftRows, setDraftRows] = useState<Record<string, Record<string, unknown>>>({});
-  const [savingRows, setSavingRows] = useState<Record<string, boolean>>({});
+  const [successMessage, setSuccessMessage] = useState("");
+  const [draftRows, setDraftRows] = useState<
+    Record<string, Record<string, unknown>>
+  >({});
+  const [batchConfirmOpen, setBatchConfirmOpen] = useState(false);
+  const [batchSaving, setBatchSaving] = useState(false);
   const [valuePickerField, setValuePickerField] = useState<string | null>(null);
   const [valuePickerSearch, setValuePickerSearch] = useState("");
   const [valuePickerValues, setValuePickerValues] = useState<DistinctValue[]>([]);
@@ -66,7 +115,14 @@ export default function OdistsParsingPage() {
     setLoading(true);
     setError("");
     try {
-      const response = await odistsApi.getPage({ page, pageSize, columns: visibleColumns, filters: appliedFilters, sortBy, sortDir });
+      const response = await odistsApi.getPage({
+        page,
+        pageSize,
+        columns: visibleColumns,
+        filters: appliedFilters,
+        sortBy,
+        sortDir,
+      });
       setData(response.data);
       setDraftRows({});
     } catch (err) {
@@ -76,15 +132,29 @@ export default function OdistsParsingPage() {
     }
   };
 
-  useEffect(() => { void load(); }, [page, pageSize, visibleColumns.join(","), JSON.stringify(appliedFilters), sortBy, sortDir]);
+  useEffect(() => {
+    void load();
+  }, [
+    page,
+    pageSize,
+    visibleColumns.join(","),
+    JSON.stringify(appliedFilters),
+    sortBy,
+    sortDir,
+  ]);
 
   useEffect(() => {
     if (!valuePickerField) return;
     let cancelled = false;
     setValuePickerLoading(true);
+
     const timer = window.setTimeout(async () => {
       try {
-        const response = await odistsApi.getDistinctValues(valuePickerField, valuePickerSearch, 100);
+        const response = await odistsApi.getDistinctValues(
+          valuePickerField,
+          valuePickerSearch,
+          100
+        );
         if (!cancelled) {
           setValuePickerValues(response.data);
           setError("");
@@ -92,80 +162,171 @@ export default function OdistsParsingPage() {
       } catch (err) {
         if (!cancelled) {
           setValuePickerValues([]);
-          setError(err instanceof Error ? err.message : "Gagal mengambil daftar nilai");
+          setError(
+            err instanceof Error ? err.message : "Gagal mengambil daftar nilai"
+          );
         }
       } finally {
         if (!cancelled) setValuePickerLoading(false);
       }
     }, 300);
-    return () => { cancelled = true; window.clearTimeout(timer); };
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
   }, [valuePickerField, valuePickerSearch]);
 
   const metadata = data?.columns || [];
-  const metadataMap = useMemo(() => new Map(metadata.map((column) => [column.name, column])), [metadata]);
-  const filteredFields = metadata.filter((column) => `${column.name} ${column.label}`.toLowerCase().includes(fieldSearch.toLowerCase()));
+  const metadataMap = useMemo(
+    () => new Map(metadata.map((column) => [column.name, column])),
+    [metadata]
+  );
+  const filteredFields = metadata.filter((column) =>
+    `${column.name} ${column.label}`
+      .toLowerCase()
+      .includes(fieldSearch.toLowerCase())
+  );
 
   const toggleColumn = (name: string) => {
     setPage(1);
     setVisibleColumns((current) => {
       if (name === "id") return current;
-      return current.includes(name) ? current.filter((item) => item !== name) : [...current, name];
+      return current.includes(name)
+        ? current.filter((item) => item !== name)
+        : [...current, name];
     });
   };
 
   const toggleSort = (name: string) => {
     setPage(1);
-    if (sortBy === name) setSortDir((current) => current === "asc" ? "desc" : "asc");
-    else { setSortBy(name); setSortDir("asc"); }
+    if (sortBy === name) {
+      setSortDir((current) => (current === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(name);
+      setSortDir("asc");
+    }
   };
 
-  const applyFilters = () => { setPage(1); setAppliedFilters(filters); };
-  const handleFilterKeyDown = (event: KeyboardEvent<HTMLInputElement>) => { if (event.key === "Enter") applyFilters(); };
+  const applyFilters = () => {
+    setPage(1);
+    setAppliedFilters(filters);
+  };
+
+  const handleFilterKeyDown = (
+    event: ReactKeyboardEvent<HTMLInputElement>
+  ) => {
+    if (event.key === "Enter" && !event.ctrlKey && !event.metaKey) {
+      applyFilters();
+    }
+  };
+
   const rowId = (row: Record<string, unknown>) => String(row.id);
+
   const getCellValue = (row: Record<string, unknown>, field: string) => {
     const draft = draftRows[rowId(row)];
     return draft && field in draft ? draft[field] : row[field];
   };
 
-  const setCellValue = (row: Record<string, unknown>, field: string, value: unknown) => {
+  const setCellValue = (
+    row: Record<string, unknown>,
+    field: string,
+    value: unknown
+  ) => {
     const id = rowId(row);
-    setDraftRows((current) => ({ ...current, [id]: { ...(current[id] || {}), [field]: value } }));
+    setSuccessMessage("");
+    setDraftRows((current) => ({
+      ...current,
+      [id]: { ...(current[id] || {}), [field]: value },
+    }));
   };
 
   const getChangedValues = (row: Record<string, unknown>) => {
     const draft = draftRows[rowId(row)] || {};
     const changed: Record<string, unknown> = {};
+
     Object.entries(draft).forEach(([field, value]) => {
       const nextValue = normalizedValue(value);
       const originalValue = normalizedValue(row[field]);
-      if (String(nextValue ?? "") !== String(originalValue ?? "")) changed[field] = nextValue;
+      if (String(nextValue ?? "") !== String(originalValue ?? "")) {
+        changed[field] = nextValue;
+      }
     });
+
     return changed;
   };
 
-  const isRowDirty = (row: Record<string, unknown>) => Object.keys(getChangedValues(row)).length > 0;
+  const pendingUpdates: OdistsBatchUpdateItem[] = (data?.items || [])
+    .map((row) => ({
+      id: Number(row.id),
+      values: getChangedValues(row),
+    }))
+    .filter((item) => Object.keys(item.values).length > 0);
+
+  const dirtyRowCount = pendingUpdates.length;
+  const totalChangedFields = pendingUpdates.reduce(
+    (total, item) => total + Object.keys(item.values).length,
+    0
+  );
+
+  const isRowDirty = (row: Record<string, unknown>) =>
+    Object.keys(getChangedValues(row)).length > 0;
+
   const cancelRow = (row: Record<string, unknown>) => {
     const id = rowId(row);
-    setDraftRows((current) => { const next = { ...current }; delete next[id]; return next; });
+    setDraftRows((current) => {
+      const next = { ...current };
+      delete next[id];
+      return next;
+    });
   };
 
-  const saveRow = async (row: Record<string, unknown>) => {
-    const id = rowId(row);
-    const changed = getChangedValues(row);
-    if (!Object.keys(changed).length) return;
+  const discardAllChanges = () => {
+    setDraftRows({});
+    setBatchConfirmOpen(false);
+    setSuccessMessage("");
+  };
 
-    const confirmed = window.confirm(`Are you sure you want to save changes for odists_id ${row.id}?`);
-    if (!confirmed) return;
+  const requestBatchSave = () => {
+    if (!dirtyRowCount || batchSaving) return;
+    setBatchConfirmOpen(true);
+  };
 
-    setSavingRows((current) => ({ ...current, [id]: true }));
+  const saveAllChanges = async () => {
+    if (!pendingUpdates.length || batchSaving) return;
+
+    setBatchSaving(true);
     setError("");
+    setSuccessMessage("");
     try {
-      await odistsApi.update(Number(row.id), changed);
+      const response = await odistsApi.updateBatch(pendingUpdates);
+      setBatchConfirmOpen(false);
       await load();
+      setSuccessMessage(
+        `${response.data.updated_count} row ODIST berhasil diperbarui.`
+      );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Update gagal");
+      setError(err instanceof Error ? err.message : "Batch update gagal");
     } finally {
-      setSavingRows((current) => ({ ...current, [id]: false }));
+      setBatchSaving(false);
+    }
+  };
+
+  const handlePageKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (batchConfirmOpen) {
+        void saveAllChanges();
+      } else if (!valuePickerField) {
+        requestBatchSave();
+      }
+      return;
+    }
+
+    if (event.key === "Escape" && batchConfirmOpen && !batchSaving) {
+      event.preventDefault();
+      setBatchConfirmOpen(false);
     }
   };
 
@@ -178,14 +339,21 @@ export default function OdistsParsingPage() {
 
   const toggleSelectedValue = (value: SelectedValue) => {
     const key = valueKey(value);
-    setSelectedValues((current) => current.some((item) => valueKey(item) === key) ? current.filter((item) => valueKey(item) !== key) : [...current, value]);
+    setSelectedValues((current) =>
+      current.some((item) => valueKey(item) === key)
+        ? current.filter((item) => valueKey(item) !== key)
+        : [...current, value]
+    );
   };
 
   const applySelectedValues = () => {
     if (!valuePickerField) return;
     const nextFilters = { ...filters };
-    if (selectedValues.length) nextFilters[valuePickerField] = `__IN__:${JSON.stringify(selectedValues)}`;
-    else delete nextFilters[valuePickerField];
+    if (selectedValues.length) {
+      nextFilters[valuePickerField] = `__IN__:${JSON.stringify(selectedValues)}`;
+    } else {
+      delete nextFilters[valuePickerField];
+    }
     setFilters(nextFilters);
     setAppliedFilters(nextFilters);
     setPage(1);
@@ -194,74 +362,402 @@ export default function OdistsParsingPage() {
 
   const resetSelectedValues = () => setSelectedValues([]);
 
-  const renderEditableCell = (row: Record<string, unknown>, column: OdistsColumn) => {
+  const renderEditableCell = (
+    row: Record<string, unknown>,
+    column: OdistsColumn
+  ) => {
     const value = getCellValue(row, column.name);
-    const changed = column.name in (draftRows[rowId(row)] || {}) && String(normalizedValue(value) ?? "") !== String(normalizedValue(row[column.name]) ?? "");
+    const changed =
+      column.name in (draftRows[rowId(row)] || {}) &&
+      String(normalizedValue(value) ?? "") !==
+        String(normalizedValue(row[column.name]) ?? "");
+
     return (
-      <td key={column.name} className={`border-b p-1 align-top min-w-40 ${changed ? "bg-amber-100 dark:bg-amber-950/40" : ""}`}>
-        <Input className="h-8 min-w-36 border-transparent bg-transparent text-sm hover:border-input focus:border-input" value={value == null ? "" : String(value)} onChange={(event) => setCellValue(row, column.name, event.target.value)} onKeyDown={(event) => {
-          if (event.key === "Enter" && isRowDirty(row)) { event.preventDefault(); void saveRow(row); }
-          if (event.key === "Escape") cancelRow(row);
-        }} />
+      <td
+        key={column.name}
+        className={`min-w-40 border-b p-1 align-top ${
+          changed ? "bg-amber-100 dark:bg-amber-950/40" : ""
+        }`}
+      >
+        <Input
+          className="h-8 min-w-36 border-transparent bg-transparent text-sm hover:border-input focus:border-input"
+          value={value == null ? "" : String(value)}
+          onChange={(event) =>
+            setCellValue(row, column.name, event.target.value)
+          }
+          onKeyDown={(event) => {
+            if (event.key === "Escape") cancelRow(row);
+          }}
+        />
       </td>
     );
   };
 
   return (
-    <div className="p-6 space-y-4 min-w-0 text-sm">
+    <div
+      className="min-w-0 space-y-4 p-6 text-sm"
+      onKeyDownCapture={handlePageKeyDown}
+    >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">ODIST Parsing</h1>
-          <p className="text-sm text-muted-foreground">Sumber MySQL pipeline_bigdata.gold_odists_parsing_manual. Klik cell untuk edit.</p>
+          <p className="text-sm text-muted-foreground">
+            Edit beberapa row, lalu tekan Ctrl + Enter untuk menyimpan seluruh
+            perubahan sekaligus.
+          </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setShowFields((value) => !value)}>Field List</Button>
-          <Button variant="outline" onClick={() => void load()}>Refresh</Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            onClick={requestBatchSave}
+            disabled={!dirtyRowCount || batchSaving}
+          >
+            Save All Changes{dirtyRowCount ? ` (${dirtyRowCount})` : ""}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={discardAllChanges}
+            disabled={!dirtyRowCount || batchSaving}
+          >
+            Discard All
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setShowFields((value) => !value)}
+          >
+            Field List
+          </Button>
+          <Button variant="outline" onClick={() => void load()}>
+            Refresh
+          </Button>
         </div>
       </div>
 
-      {showFields && <Card><CardHeader><CardTitle className="text-base">Pilih Kolom</CardTitle></CardHeader><CardContent className="space-y-3">
-        <Input placeholder="Cari nama field..." value={fieldSearch} onChange={(event) => setFieldSearch(event.target.value)} />
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2 max-h-64 overflow-auto">
-          {filteredFields.map((column) => <label key={column.name} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={visibleColumns.includes(column.name)} disabled={column.name === "id"} onChange={() => toggleColumn(column.name)} />{column.label}</label>)}
+      {dirtyRowCount > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100">
+          <span className="font-medium">
+            {dirtyRowCount} row dan {totalChangedFields} field belum disimpan.
+          </span>
+          <span className="text-xs">Shortcut: Ctrl + Enter</span>
         </div>
-      </CardContent></Card>}
+      )}
 
-      <Card><CardContent className="pt-6 space-y-3">
-        <div className="flex flex-wrap gap-2 items-end">
-          <Button onClick={applyFilters}>Terapkan Filter</Button>
-          <Button variant="outline" onClick={() => { setFilters({}); setAppliedFilters({}); setPage(1); }}>Reset Filter</Button>
-          <label className="text-sm ml-auto">Rows<select className="ml-2 border rounded px-2 py-2 bg-background" value={pageSize} onChange={(event) => { setPage(1); setPageSize(Number(event.target.value)); }}>{[25, 50, 100, 200].map((size) => <option key={size} value={size}>{size}</option>)}</select></label>
-        </div>
-        {error && <p className="text-sm text-destructive">{error}</p>}
-        <div className="overflow-auto border rounded-md max-h-[68vh]">
-          <table className="w-full text-sm border-collapse">
-            <thead className="sticky top-0 bg-background z-10"><tr>{visibleColumns.map((name) => {
-              const column = metadataMap.get(name);
-              const chosenCount = parseSelectedValues(filters[name]).length;
-              return <th key={name} className="border-b p-2 text-left min-w-44 align-top">
-                <button className="font-semibold text-sm" onClick={() => toggleSort(name)}>{column?.label || name}{sortBy === name ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</button>
-                <div className="flex gap-1 mt-2">
-                  <Input className="h-8 font-normal min-w-28 text-sm" placeholder={chosenCount ? `${chosenCount} value dipilih` : "Filter..."} value={filters[name]?.startsWith("__IN__:") ? "" : filters[name] || ""} onChange={(event) => setFilters((current) => ({ ...current, [name]: event.target.value }))} onKeyDown={handleFilterKeyDown} />
-                  <Button type="button" size="sm" variant={chosenCount ? "default" : "outline"} className="h-8 px-2" title="Choose value" onClick={() => openValuePicker(name)}>⋯</Button>
+      {showFields && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Pilih Kolom</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Input
+              placeholder="Cari nama field..."
+              value={fieldSearch}
+              onChange={(event) => setFieldSearch(event.target.value)}
+            />
+            <div className="grid max-h-64 grid-cols-2 gap-2 overflow-auto md:grid-cols-4 lg:grid-cols-6">
+              {filteredFields.map((column) => (
+                <label
+                  key={column.name}
+                  className="flex items-center gap-2 text-sm"
+                >
+                  <input
+                    type="checkbox"
+                    checked={visibleColumns.includes(column.name)}
+                    disabled={column.name === "id"}
+                    onChange={() => toggleColumn(column.name)}
+                  />
+                  {column.label}
+                </label>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardContent className="space-y-3 pt-6">
+          <div className="flex flex-wrap items-end gap-2">
+            <Button onClick={applyFilters}>Terapkan Filter</Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setFilters({});
+                setAppliedFilters({});
+                setPage(1);
+              }}
+            >
+              Reset Filter
+            </Button>
+            <label className="ml-auto text-sm">
+              Rows
+              <select
+                className="ml-2 rounded border bg-background px-2 py-2"
+                value={pageSize}
+                onChange={(event) => {
+                  setPage(1);
+                  setPageSize(Number(event.target.value));
+                }}
+              >
+                {[25, 50, 100, 200].map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          {successMessage && (
+            <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+              {successMessage}
+            </p>
+          )}
+
+          <div className="max-h-[68vh] overflow-auto rounded-md border">
+            <table className="w-full border-collapse text-sm">
+              <thead className="sticky top-0 z-10 bg-background">
+                <tr>
+                  {visibleColumns.map((name) => {
+                    const column = metadataMap.get(name);
+                    const chosenCount = parseSelectedValues(filters[name]).length;
+                    return (
+                      <th
+                        key={name}
+                        className="min-w-44 border-b p-2 text-left align-top"
+                      >
+                        <button
+                          className="text-sm font-semibold"
+                          onClick={() => toggleSort(name)}
+                        >
+                          {column?.label || name}
+                          {sortBy === name
+                            ? sortDir === "asc"
+                              ? " ▲"
+                              : " ▼"
+                            : ""}
+                        </button>
+                        <div className="mt-2 flex gap-1">
+                          <Input
+                            className="h-8 min-w-28 font-normal text-sm"
+                            placeholder={
+                              chosenCount
+                                ? `${chosenCount} value dipilih`
+                                : "Filter..."
+                            }
+                            value={
+                              filters[name]?.startsWith("__IN__:")
+                                ? ""
+                                : filters[name] || ""
+                            }
+                            onChange={(event) =>
+                              setFilters((current) => ({
+                                ...current,
+                                [name]: event.target.value,
+                              }))
+                            }
+                            onKeyDown={handleFilterKeyDown}
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={chosenCount ? "default" : "outline"}
+                            className="h-8 px-2"
+                            title="Choose value"
+                            onClick={() => openValuePicker(name)}
+                          >
+                            ⋯
+                          </Button>
+                        </div>
+                      </th>
+                    );
+                  })}
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td
+                      className="p-6 text-center"
+                      colSpan={visibleColumns.length}
+                    >
+                      Memuat data...
+                    </td>
+                  </tr>
+                ) : data?.items.length ? (
+                  data.items.map((row) => {
+                    const dirty = isRowDirty(row);
+                    return (
+                      <tr
+                        key={rowId(row)}
+                        className={
+                          dirty
+                            ? "bg-amber-50/50 dark:bg-amber-950/20"
+                            : "hover:bg-muted/40"
+                        }
+                      >
+                        {visibleColumns.map((name) => {
+                          const column = metadataMap.get(name);
+                          if (column?.editable) {
+                            return renderEditableCell(row, column);
+                          }
+                          return (
+                            <td
+                              key={name}
+                              className="whitespace-nowrap border-b p-2 align-top"
+                              title={
+                                row[name] == null ? "NULL" : String(row[name])
+                              }
+                            >
+                              {renderValue(name, row[name])}
+                              {name === "id" && dirty && (
+                                <div className="mt-2 flex items-center gap-2">
+                                  <span className="rounded-full bg-amber-200 px-2 py-1 text-xs font-medium text-amber-950 dark:bg-amber-900 dark:text-amber-100">
+                                    Changed
+                                  </span>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => cancelRow(row)}
+                                    disabled={batchSaving}
+                                  >
+                                    Cancel Row
+                                  </Button>
+                                </div>
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td
+                      className="p-6 text-center"
+                      colSpan={visibleColumns.length}
+                    >
+                      Tidak ada data.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex items-center justify-between text-sm">
+            <span>Total {data?.total ?? 0} row</span>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page <= 1}
+                onClick={() => setPage((value) => value - 1)}
+              >
+                Previous
+              </Button>
+              <span>
+                Page {data?.page ?? page} / {data?.total_pages ?? 1}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page >= (data?.total_pages ?? 1)}
+                onClick={() => setPage((value) => value + 1)}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {batchConfirmOpen && (
+        <div className="fixed inset-0 z-[110] overflow-y-auto bg-black/50 p-4 sm:p-6">
+          <div className="flex min-h-full items-start justify-center py-4 sm:items-center">
+            <Card className="flex max-h-[calc(100vh-3rem)] w-full max-w-2xl flex-col overflow-hidden border bg-background shadow-2xl">
+              <CardHeader className="shrink-0 border-b bg-background px-6 pb-4 pt-6">
+                <CardTitle className="text-xl leading-7">
+                  Confirm Batch Update
+                </CardTitle>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                  Periksa ringkasan perubahan sebelum data disimpan ke database.
+                </p>
+              </CardHeader>
+
+              <CardContent className="flex min-h-0 flex-1 flex-col p-0 text-sm">
+                <div className="grid shrink-0 grid-cols-2 gap-3 border-b bg-muted/20 px-6 py-4">
+                  <div className="rounded-lg border bg-background p-4">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                      Rows
+                    </p>
+                    <p className="mt-1 text-2xl font-bold">{dirtyRowCount}</p>
+                  </div>
+                  <div className="rounded-lg border bg-background p-4">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                      Changed fields
+                    </p>
+                    <p className="mt-1 text-2xl font-bold">
+                      {totalChangedFields}
+                    </p>
+                  </div>
                 </div>
-              </th>;
-            })}</tr></thead>
-            <tbody>
-              {loading ? <tr><td className="p-6 text-center" colSpan={visibleColumns.length}>Memuat data...</td></tr> : data?.items.length ? data.items.map((row) => {
-                const dirty = isRowDirty(row);
-                const saving = Boolean(savingRows[rowId(row)]);
-                return <tr key={rowId(row)} className={dirty ? "bg-amber-50/50 dark:bg-amber-950/20" : "hover:bg-muted/40"}>{visibleColumns.map((name) => {
-                  const column = metadataMap.get(name);
-                  if (column?.editable) return renderEditableCell(row, column);
-                  return <td key={name} className="border-b p-2 align-top whitespace-nowrap" title={row[name] == null ? "NULL" : String(row[name])}>{renderValue(name, row[name])}{name === "id" && dirty && <div className="flex gap-1 mt-2"><Button size="sm" onClick={() => void saveRow(row)} disabled={saving}>{saving ? "Saving..." : "Save"}</Button><Button size="sm" variant="outline" onClick={() => cancelRow(row)} disabled={saving}>Cancel</Button></div>}</td>;
-                })}</tr>;
-              }) : <tr><td className="p-6 text-center" colSpan={visibleColumns.length}>Tidak ada data.</td></tr>}
-            </tbody>
-          </table>
+
+                <div className="min-h-0 flex-1 overflow-auto px-6 py-4">
+                  <div className="overflow-hidden rounded-lg border">
+                    <table className="w-full text-sm">
+                      <thead className="sticky top-0 z-10 bg-background shadow-sm">
+                        <tr>
+                          <th className="w-40 border-b p-3 text-left font-semibold">
+                            odists_id
+                          </th>
+                          <th className="border-b p-3 text-left font-semibold">
+                            Fields to update
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pendingUpdates.map((item) => (
+                          <tr key={item.id}>
+                            <td className="border-b p-3 font-medium tabular-nums">
+                              {item.id}
+                            </td>
+                            <td className="border-b p-3 leading-6 text-muted-foreground">
+                              {Object.keys(item.values).join(", ")}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="flex shrink-0 items-center justify-between gap-3 border-t bg-background px-6 py-4">
+                  <span className="text-xs text-muted-foreground">
+                    Ctrl + Enter juga dapat digunakan untuk konfirmasi.
+                  </span>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setBatchConfirmOpen(false)}
+                      disabled={batchSaving}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      autoFocus
+                      onClick={() => void saveAllChanges()}
+                      disabled={batchSaving}
+                    >
+                      {batchSaving
+                        ? "Saving..."
+                        : `Save ${dirtyRowCount} Rows`}
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
-        <div className="flex items-center justify-between text-sm"><span>Total {data?.total ?? 0} row</span><div className="flex items-center gap-2"><Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>Previous</Button><span>Page {data?.page ?? page} / {data?.total_pages ?? 1}</span><Button variant="outline" size="sm" disabled={page >= (data?.total_pages ?? 1)} onClick={() => setPage((value) => value + 1)}>Next</Button></div></div>
-      </CardContent></Card>
+      )}
 
       {valuePickerField && (
         <div className="fixed inset-0 z-[100] overflow-y-auto bg-black/50 p-4 sm:p-6">
@@ -272,7 +768,8 @@ export default function OdistsParsingPage() {
                   Choose Value: {metadataMap.get(valuePickerField)?.label || valuePickerField}
                 </CardTitle>
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                  Pilih beberapa value. Pilihan tetap tersimpan saat Anda mencari value lain.
+                  Pilih beberapa value. Pilihan tetap tersimpan saat Anda mencari
+                  value lain.
                 </p>
               </CardHeader>
 
@@ -283,12 +780,22 @@ export default function OdistsParsingPage() {
                     className="h-11 text-sm"
                     placeholder="Ketik untuk mencari value..."
                     value={valuePickerSearch}
-                    onChange={(event) => setValuePickerSearch(event.target.value)}
+                    onChange={(event) =>
+                      setValuePickerSearch(event.target.value)
+                    }
                   />
 
                   <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/30 px-4 py-3">
-                    <span className="font-medium">{selectedValues.length} value dipilih</span>
-                    <Button size="sm" variant="ghost" onClick={resetSelectedValues}>Reset pilihan</Button>
+                    <span className="font-medium">
+                      {selectedValues.length} value dipilih
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={resetSelectedValues}
+                    >
+                      Reset pilihan
+                    </Button>
                   </div>
 
                   {selectedValues.length > 0 && (
@@ -309,32 +816,73 @@ export default function OdistsParsingPage() {
 
                 <div className="mx-6 my-4 min-h-0 flex-1 overflow-auto rounded-lg border">
                   {valuePickerLoading ? (
-                    <div className="p-6 text-center text-muted-foreground">Memuat value...</div>
+                    <div className="p-6 text-center text-muted-foreground">
+                      Memuat value...
+                    </div>
                   ) : (
                     <table className="w-full text-sm">
                       <thead className="sticky top-0 z-10 bg-background shadow-sm">
                         <tr>
                           <th className="w-12 border-b p-3"></th>
-                          <th className="border-b p-3 text-left font-semibold">Value</th>
-                          <th className="w-28 border-b p-3 text-right font-semibold">Rows</th>
+                          <th className="border-b p-3 text-left font-semibold">
+                            Value
+                          </th>
+                          <th className="w-28 border-b p-3 text-right font-semibold">
+                            Rows
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
-                        {valuePickerValues.length ? valuePickerValues.map((item, index) => {
-                          const checked = selectedValues.some((value) => valueKey(value) === valueKey(item.value as SelectedValue));
-                          return (
-                            <tr
-                              key={`${valueKey(item.value as SelectedValue)}-${index}`}
-                              className="cursor-pointer hover:bg-muted/50"
-                              onClick={() => toggleSelectedValue(item.value as SelectedValue)}
+                        {valuePickerValues.length ? (
+                          valuePickerValues.map((item, index) => {
+                            const checked = selectedValues.some(
+                              (value) =>
+                                valueKey(value) ===
+                                valueKey(item.value as SelectedValue)
+                            );
+                            return (
+                              <tr
+                                key={`${valueKey(
+                                  item.value as SelectedValue
+                                )}-${index}`}
+                                className="cursor-pointer hover:bg-muted/50"
+                                onClick={() =>
+                                  toggleSelectedValue(
+                                    item.value as SelectedValue
+                                  )
+                                }
+                              >
+                                <td className="border-b p-3 text-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    readOnly
+                                  />
+                                </td>
+                                <td className="break-words border-b p-3 leading-6">
+                                  {item.value === null ? (
+                                    <span className="italic text-muted-foreground">
+                                      NULL
+                                    </span>
+                                  ) : (
+                                    String(item.value)
+                                  )}
+                                </td>
+                                <td className="border-b p-3 text-right tabular-nums">
+                                  {item.row_count}
+                                </td>
+                              </tr>
+                            );
+                          })
+                        ) : (
+                          <tr>
+                            <td
+                              className="p-6 text-center text-muted-foreground"
+                              colSpan={3}
                             >
-                              <td className="border-b p-3 text-center"><input type="checkbox" checked={checked} readOnly /></td>
-                              <td className="break-words border-b p-3 leading-6">{item.value === null ? <span className="italic text-muted-foreground">NULL</span> : String(item.value)}</td>
-                              <td className="border-b p-3 text-right tabular-nums">{item.row_count}</td>
-                            </tr>
-                          );
-                        }) : (
-                          <tr><td className="p-6 text-center text-muted-foreground" colSpan={3}>Value tidak ditemukan.</td></tr>
+                              Value tidak ditemukan.
+                            </td>
+                          </tr>
                         )}
                       </tbody>
                     </table>
@@ -342,9 +890,16 @@ export default function OdistsParsingPage() {
                 </div>
 
                 <div className="flex shrink-0 justify-between gap-3 border-t bg-background px-6 py-4">
-                  <Button variant="outline" onClick={resetSelectedValues}>Reset</Button>
+                  <Button variant="outline" onClick={resetSelectedValues}>
+                    Reset
+                  </Button>
                   <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => setValuePickerField(null)}>Cancel</Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setValuePickerField(null)}
+                    >
+                      Cancel
+                    </Button>
                     <Button onClick={applySelectedValues}>OK</Button>
                   </div>
                 </div>
