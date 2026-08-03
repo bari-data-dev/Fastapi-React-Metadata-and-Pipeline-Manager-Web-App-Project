@@ -23,3 +23,17 @@ class OdistsPage(BaseModel):
 
 class OdistsUpdateRequest(BaseModel):
     values: Dict[str, Optional[Any]] = Field(default_factory=dict)
+
+
+class OdistsBatchUpdateItem(BaseModel):
+    id: int
+    values: Dict[str, Optional[Any]] = Field(default_factory=dict)
+
+
+class OdistsBatchUpdateRequest(BaseModel):
+    items: List[OdistsBatchUpdateItem] = Field(..., min_items=1, max_items=200)
+
+
+class OdistsBatchUpdateResult(BaseModel):
+    updated_count: int
+    updated_ids: List[int]
