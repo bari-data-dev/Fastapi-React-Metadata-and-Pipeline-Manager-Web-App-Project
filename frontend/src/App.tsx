@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
@@ -15,6 +16,7 @@ import OdistsParsingPage from "./pages/metadata/OdistsParsingPage";
 import UsersPage from "./pages/admin/UsersPage";
 
 const queryClient = new QueryClient();
+const SIDEBAR_STORAGE_KEY = "metadata_app_sidebar_open";
 
 function ProtectedContent() {
   const { state, isMobile, setOpen, setOpenMobile } = useSidebar();
@@ -51,8 +53,18 @@ function ProtectedContent() {
 }
 
 function ProtectedLayout() {
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(() => {
+    const savedState = localStorage.getItem(SIDEBAR_STORAGE_KEY);
+    return savedState === null ? true : savedState === "true";
+  });
+
+  const handleSidebarOpenChange = (open: boolean) => {
+    setSidebarOpen(open);
+    localStorage.setItem(SIDEBAR_STORAGE_KEY, String(open));
+  };
+
   return (
-    <SidebarProvider>
+    <SidebarProvider open={sidebarOpen} onOpenChange={handleSidebarOpenChange}>
       <ProtectedContent />
     </SidebarProvider>
   );
