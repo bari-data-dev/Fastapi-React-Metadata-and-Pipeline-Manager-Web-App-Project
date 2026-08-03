@@ -274,9 +274,11 @@ def update_row(
     if not changed_values:
         return dict(old_row)
 
+    parser_name = (current_user.full_name or current_user.username).strip()
     params: Dict[str, Any] = {
         "id": odist_id,
         "updated_by": current_user.user_id,
+        "status_upd": f"Parsed by {parser_name}",
     }
     set_parts: List[str] = []
     for index, (field, value) in enumerate(changed_values.items()):
@@ -288,7 +290,7 @@ def update_row(
         [
             "`updated_at` = CURRENT_TIMESTAMP",
             "`parsed_at` = CURRENT_TIMESTAMP",
-            "`status_upd` = 'UPDATED'",
+            "`status_upd` = :status_upd",
             "`updated_by` = :updated_by",
         ]
     )
