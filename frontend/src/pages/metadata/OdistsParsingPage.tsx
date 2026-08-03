@@ -21,6 +21,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 
 const DEFAULT_COLUMNS = [
   "id",
@@ -51,6 +53,8 @@ const DATE_FIELDS = new Set([
 
 const DEFAULT_COLUMN_WIDTH = 210;
 const ID_COLUMN_WIDTH = 230;
+const MOBILE_COLUMN_WIDTH = 170;
+const MOBILE_ID_COLUMN_WIDTH = 190;
 const MIN_COLUMN_WIDTH = 110;
 const MAX_COLUMN_WIDTH = 700;
 
@@ -98,6 +102,7 @@ function parseSelectedValues(filterValue: string | undefined): SelectedValue[] {
 }
 
 export default function OdistsParsingPage() {
+  const isMobile = useIsMobile();
   const [data, setData] = useState<OdistsPage | null>(null);
   const [visibleColumns, setVisibleColumns] = useState<string[]>(DEFAULT_COLUMNS);
   const [appliedFilters, setAppliedFilters] = useState<Record<string, string>>({});
@@ -210,9 +215,13 @@ export default function OdistsParsingPage() {
 
   const activeFilterCount = Object.keys(appliedFilters).length;
 
-  const getColumnWidth = (name: string) =>
-    columnWidths[name] ??
-    (name === "id" ? ID_COLUMN_WIDTH : DEFAULT_COLUMN_WIDTH);
+  const getColumnWidth = (name: string) => {
+    if (columnWidths[name]) return columnWidths[name];
+    if (isMobile) {
+      return name === "id" ? MOBILE_ID_COLUMN_WIDTH : MOBILE_COLUMN_WIDTH;
+    }
+    return name === "id" ? ID_COLUMN_WIDTH : DEFAULT_COLUMN_WIDTH;
+  };
 
   const totalTableWidth = visibleColumns.reduce(
     (total, name) => total + getColumnWidth(name),
@@ -434,13 +443,14 @@ export default function OdistsParsingPage() {
     return (
       <td
         key={column.name}
-        className={`overflow-hidden border-b p-1 align-top ${
-          changed ? "bg-amber-100 dark:bg-amber-950/40" : ""
-        }`}
+        className={cn(
+          "overflow-hidden border-b p-1 align-top",
+          changed && "bg-amber-100 dark:bg-amber-950/40"
+        )}
         style={{ width: getColumnWidth(column.name) }}
       >
         <Input
-          className="h-8 w-full min-w-0 border-transparent bg-transparent text-sm hover:border-input focus:border-input"
+          className="h-9 w-full min-w-0 border-transparent bg-transparent px-2 text-xs hover:border-input focus:border-input sm:h-8 sm:text-sm"
           value={value == null ? "" : String(value)}
           onChange={(event) =>
             setCellValue(row, column.name, event.target.value)
@@ -455,26 +465,36 @@ export default function OdistsParsingPage() {
 
   return (
     <div
-      className="min-w-0 space-y-4 p-6 text-sm"
+      className="min-w-0 space-y-3 p-3 text-sm sm:space-y-4 sm:p-6"
       onKeyDownCapture={handlePageKeyDown}
     >
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">ODIST Parsing</h1>
-          <p className="text-sm text-muted-foreground">
-            Edit beberapa row, lalu tekan Ctrl + Enter untuk menyimpan seluruh
-            perubahan sekaligus.
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold sm:text-2xl">ODIST Parsing</h1>
+          <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
+            <span className="sm:hidden">
+              Edit beberapa data lalu gunakan Save All.
+            </span>
+            <span className="hidden sm:inline">
+              Edit beberapa row, lalu tekan Ctrl + Enter untuk menyimpan seluruh
+              perubahan sekaligus.
+            </span>
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
           <Button
+            className="w-full sm:w-auto"
             onClick={requestBatchSave}
             disabled={!dirtyRowCount || batchSaving}
           >
-            Save All Changes{dirtyRowCount ? ` (${dirtyRowCount})` : ""}
+            <span className="sm:hidden">Save All</span>
+            <span className="hidden sm:inline">Save All Changes</span>
+            {dirtyRowCount ? ` (${dirtyRowCount})` : ""}
           </Button>
           <Button
             variant="outline"
+            className="w-full sm:w-auto"
             onClick={discardAllChanges}
             disabled={!dirtyRowCount || batchSaving}
           >
@@ -482,49 +502,57 @@ export default function OdistsParsingPage() {
           </Button>
           <Button
             variant="outline"
+            className="w-full sm:w-auto"
             onClick={() => setShowFields((value) => !value)}
           >
             Field List
           </Button>
-          <Button variant="outline" onClick={() => void load()}>
+          <Button
+            variant="outline"
+            className="w-full sm:w-auto"
+            onClick={() => void load()}
+          >
             Refresh
           </Button>
         </div>
       </div>
 
       {dirtyRowCount > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100">
+        <div className="flex flex-col gap-1 rounded-lg border border-amber-300 bg-amber-50 px-3 py-3 text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100 sm:flex-row sm:items-center sm:justify-between sm:px-4">
           <span className="font-medium">
             {dirtyRowCount} row dan {totalChangedFields} field belum disimpan.
           </span>
-          <span className="text-xs">Shortcut: Ctrl + Enter</span>
+          <span className="hidden text-xs sm:inline">Shortcut: Ctrl + Enter</span>
         </div>
       )}
 
       {showFields && (
         <Card>
-          <CardHeader>
+          <CardHeader className="px-4 py-4 sm:px-6 sm:py-5">
             <CardTitle className="text-base">PILIH KOLOM</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-3 px-4 pb-4 sm:px-6 sm:pb-6">
             <Input
               placeholder="Cari nama field..."
               value={fieldSearch}
               onChange={(event) => setFieldSearch(event.target.value)}
             />
-            <div className="grid max-h-64 grid-cols-2 gap-2 overflow-auto md:grid-cols-4 lg:grid-cols-6">
+            <div className="grid max-h-64 grid-cols-1 gap-2 overflow-auto sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6">
               {filteredFields.map((column) => (
                 <label
                   key={column.name}
-                  className="flex items-center gap-2 text-sm"
+                  className="flex min-w-0 items-center gap-2 text-sm"
                 >
                   <input
                     type="checkbox"
+                    className="h-4 w-4 shrink-0"
                     checked={visibleColumns.includes(column.name)}
                     disabled={column.name === "id"}
                     onChange={() => toggleColumn(column.name)}
                   />
-                  {displayColumnName(column.name)}
+                  <span className="truncate">
+                    {displayColumnName(column.name)}
+                  </span>
                 </label>
               ))}
             </div>
@@ -532,11 +560,12 @@ export default function OdistsParsingPage() {
         </Card>
       )}
 
-      <Card>
-        <CardContent className="space-y-3 pt-6">
-          <div className="flex flex-wrap items-center gap-3">
+      <Card className="min-w-0 overflow-hidden">
+        <CardContent className="space-y-3 p-3 sm:p-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
             <Button
               variant="outline"
+              className="w-full sm:w-auto"
               disabled={!activeFilterCount}
               onClick={() => {
                 setAppliedFilters({});
@@ -545,18 +574,26 @@ export default function OdistsParsingPage() {
             >
               Reset Filter
             </Button>
-            <span className="text-sm text-muted-foreground">
-              {activeFilterCount
-                ? `${activeFilterCount} filter aktif`
-                : "Tidak ada filter aktif"}
-            </span>
-            <span className="text-xs text-muted-foreground">
-              Geser batas kanan header untuk resize kolom. Double-click untuk reset.
-            </span>
-            <label className="ml-auto text-sm">
-              Rows
+
+            <div className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
+              <span className="text-xs text-muted-foreground sm:text-sm">
+                {activeFilterCount
+                  ? `${activeFilterCount} filter aktif`
+                  : "Tidak ada filter aktif"}
+              </span>
+              <span className="text-xs text-muted-foreground sm:hidden">
+                Geser tabel ke samping untuk melihat kolom lain.
+              </span>
+              <span className="hidden text-xs text-muted-foreground sm:inline">
+                Geser batas kanan header untuk resize kolom. Double-click untuk
+                reset.
+              </span>
+            </div>
+
+            <label className="flex w-full items-center justify-between text-sm sm:ml-auto sm:w-auto sm:justify-start">
+              <span>Rows</span>
               <select
-                className="ml-2 rounded border bg-background px-2 py-2"
+                className="ml-2 min-w-24 rounded border bg-background px-2 py-2"
                 value={pageSize}
                 onChange={(event) => {
                   setPage(1);
@@ -572,16 +609,20 @@ export default function OdistsParsingPage() {
             </label>
           </div>
 
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && (
+            <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+              {error}
+            </p>
+          )}
           {successMessage && (
-            <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+            <p className="rounded-md bg-emerald-50 p-3 text-sm font-medium text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400">
               {successMessage}
             </p>
           )}
 
-          <div className="max-h-[68vh] overflow-auto rounded-md border">
+          <div className="max-h-[62dvh] w-full touch-auto overflow-auto overscroll-contain rounded-md border sm:max-h-[68vh]">
             <table
-              className="border-collapse text-sm"
+              className="border-collapse text-xs sm:text-sm"
               style={{ tableLayout: "fixed", width: totalTableWidth }}
             >
               <colgroup>
@@ -589,7 +630,7 @@ export default function OdistsParsingPage() {
                   <col key={name} style={{ width: getColumnWidth(name) }} />
                 ))}
               </colgroup>
-              <thead className="sticky top-0 z-10 bg-background">
+              <thead className="sticky top-0 z-20 bg-background shadow-sm">
                 <tr>
                   {visibleColumns.map((name) => {
                     const chosenCount = parseSelectedValues(
@@ -599,13 +640,17 @@ export default function OdistsParsingPage() {
                     return (
                       <th
                         key={name}
-                        className="relative overflow-visible border-b p-2 text-left align-middle"
+                        className={cn(
+                          "relative overflow-visible border-b p-2 text-left align-middle",
+                          name === "id" &&
+                            "sticky left-0 z-30 bg-background shadow-[1px_0_0_0_hsl(var(--border))]"
+                        )}
                         style={{ width: getColumnWidth(name) }}
                       >
                         <div className="flex min-w-0 items-center gap-1 pr-1">
                           <button
                             type="button"
-                            className="min-w-0 flex-1 truncate text-left text-xs font-semibold tracking-wide"
+                            className="min-w-0 flex-1 truncate text-left text-[11px] font-semibold tracking-wide sm:text-xs"
                             title={`Sort by ${label}`}
                             onClick={() => toggleSort(name)}
                           >
@@ -620,13 +665,13 @@ export default function OdistsParsingPage() {
                             type="button"
                             size="sm"
                             variant={chosenCount ? "default" : "outline"}
-                            className="h-7 shrink-0 gap-1 px-2"
+                            className="h-8 w-8 shrink-0 gap-0 p-0 sm:h-7 sm:w-auto sm:gap-1 sm:px-2"
                             title={`Filter ${label} by value`}
                             onClick={() => openValuePicker(name)}
                           >
                             <Filter className="h-3.5 w-3.5" />
                             {chosenCount > 0 && (
-                              <span className="text-[10px] font-bold">
+                              <span className="ml-0.5 text-[9px] font-bold sm:text-[10px]">
                                 {chosenCount}
                               </span>
                             )}
@@ -636,7 +681,7 @@ export default function OdistsParsingPage() {
                           role="separator"
                           aria-orientation="vertical"
                           title="Drag untuk resize. Double-click untuk reset."
-                          className="absolute right-0 top-0 z-20 h-full w-2 translate-x-1/2 cursor-col-resize select-none hover:bg-primary/30"
+                          className="absolute right-0 top-0 z-20 hidden h-full w-2 translate-x-1/2 cursor-col-resize select-none hover:bg-primary/30 sm:block"
                           onMouseDown={(event) =>
                             beginColumnResize(event, name)
                           }
@@ -678,12 +723,20 @@ export default function OdistsParsingPage() {
                           if (column?.editable) {
                             return renderEditableCell(row, column);
                           }
+
                           const title =
                             row[name] == null ? "NULL" : String(row[name]);
                           return (
                             <td
                               key={name}
-                              className="overflow-hidden border-b p-2 align-top"
+                              className={cn(
+                                "overflow-hidden border-b p-2 align-top",
+                                name === "id" &&
+                                  "sticky left-0 z-10 bg-background shadow-[1px_0_0_0_hsl(var(--border))]",
+                                name === "id" &&
+                                  dirty &&
+                                  "bg-amber-50 dark:bg-amber-950"
+                              )}
                               style={{ width: getColumnWidth(name) }}
                             >
                               <div
@@ -693,14 +746,14 @@ export default function OdistsParsingPage() {
                                 {renderValue(name, row[name])}
                               </div>
                               {name === "id" && dirty && (
-                                <div className="mt-2 flex items-center gap-2 overflow-hidden">
-                                  <span className="shrink-0 rounded-full bg-amber-200 px-2 py-1 text-xs font-medium text-amber-950 dark:bg-amber-900 dark:text-amber-100">
+                                <div className="mt-2 flex flex-col items-start gap-1.5 overflow-hidden sm:flex-row sm:items-center sm:gap-2">
+                                  <span className="shrink-0 rounded-full bg-amber-200 px-2 py-1 text-[10px] font-medium text-amber-950 dark:bg-amber-900 dark:text-amber-100 sm:text-xs">
                                     Changed
                                   </span>
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    className="shrink-0"
+                                    className="h-7 shrink-0 px-2 text-[10px] sm:text-xs"
                                     onClick={() => cancelRow(row)}
                                     disabled={batchSaving}
                                   >
@@ -728,23 +781,27 @@ export default function OdistsParsingPage() {
             </table>
           </div>
 
-          <div className="flex items-center justify-between text-sm">
-            <span>Total {data?.total ?? 0} row</span>
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+            <span className="text-center sm:text-left">
+              Total {data?.total ?? 0} row
+            </span>
+            <div className="grid w-full grid-cols-[1fr_auto_1fr] items-center gap-2 sm:flex sm:w-auto">
               <Button
                 variant="outline"
                 size="sm"
+                className="w-full"
                 disabled={page <= 1}
                 onClick={() => setPage((value) => value - 1)}
               >
                 Previous
               </Button>
-              <span>
+              <span className="whitespace-nowrap text-center text-xs sm:text-sm">
                 Page {data?.page ?? page} / {data?.total_pages ?? 1}
               </span>
               <Button
                 variant="outline"
                 size="sm"
+                className="w-full"
                 disabled={page >= (data?.total_pages ?? 1)}
                 onClick={() => setPage((value) => value + 1)}
               >
@@ -756,42 +813,44 @@ export default function OdistsParsingPage() {
       </Card>
 
       {batchConfirmOpen && (
-        <div className="fixed inset-0 z-[110] overflow-y-auto bg-black/50 p-4 sm:p-6">
-          <div className="flex min-h-full items-start justify-center py-4 sm:items-center">
-            <Card className="flex max-h-[calc(100vh-3rem)] w-full max-w-2xl flex-col overflow-hidden border bg-background shadow-2xl">
-              <CardHeader className="shrink-0 border-b bg-background px-6 pb-4 pt-6">
-                <CardTitle className="text-xl leading-7">
+        <div className="fixed inset-0 z-[110] overflow-y-auto bg-black/50 p-0 sm:p-6">
+          <div className="flex min-h-full items-start justify-center sm:items-center sm:py-4">
+            <Card className="flex h-[100dvh] max-h-[100dvh] w-full max-w-2xl flex-col overflow-hidden rounded-none border-0 bg-background shadow-2xl sm:h-auto sm:max-h-[calc(100vh-3rem)] sm:rounded-xl sm:border">
+              <CardHeader className="shrink-0 border-b bg-background px-4 py-4 sm:px-6 sm:pb-4 sm:pt-6">
+                <CardTitle className="text-lg leading-7 sm:text-xl">
                   Confirm Batch Update
                 </CardTitle>
-                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                <p className="mt-1 text-xs leading-5 text-muted-foreground sm:text-sm sm:leading-6">
                   Periksa ringkasan perubahan sebelum data disimpan ke database.
                 </p>
               </CardHeader>
 
               <CardContent className="flex min-h-0 flex-1 flex-col p-0 text-sm">
-                <div className="grid shrink-0 grid-cols-2 gap-3 border-b bg-muted/20 px-6 py-4">
-                  <div className="rounded-lg border bg-background p-4">
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                <div className="grid shrink-0 grid-cols-2 gap-2 border-b bg-muted/20 px-3 py-3 sm:gap-3 sm:px-6 sm:py-4">
+                  <div className="rounded-lg border bg-background p-3 sm:p-4">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground sm:text-xs">
                       Rows
                     </p>
-                    <p className="mt-1 text-2xl font-bold">{dirtyRowCount}</p>
+                    <p className="mt-1 text-xl font-bold sm:text-2xl">
+                      {dirtyRowCount}
+                    </p>
                   </div>
-                  <div className="rounded-lg border bg-background p-4">
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  <div className="rounded-lg border bg-background p-3 sm:p-4">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground sm:text-xs">
                       Changed fields
                     </p>
-                    <p className="mt-1 text-2xl font-bold">
+                    <p className="mt-1 text-xl font-bold sm:text-2xl">
                       {totalChangedFields}
                     </p>
                   </div>
                 </div>
 
-                <div className="min-h-0 flex-1 overflow-auto px-6 py-4">
-                  <div className="overflow-hidden rounded-lg border">
-                    <table className="w-full text-sm">
+                <div className="min-h-0 flex-1 overflow-auto px-3 py-3 sm:px-6 sm:py-4">
+                  <div className="overflow-auto rounded-lg border">
+                    <table className="min-w-[480px] w-full text-xs sm:text-sm">
                       <thead className="sticky top-0 z-10 bg-background shadow-sm">
                         <tr>
-                          <th className="w-40 border-b p-3 text-left font-semibold">
+                          <th className="w-32 border-b p-3 text-left font-semibold sm:w-40">
                             ODISTS ID
                           </th>
                           <th className="border-b p-3 text-left font-semibold">
@@ -805,9 +864,11 @@ export default function OdistsParsingPage() {
                             <td className="border-b p-3 font-medium tabular-nums">
                               {item.id}
                             </td>
-                            <td className="border-b p-3 leading-6 text-muted-foreground">
+                            <td className="border-b p-3 leading-5 text-muted-foreground sm:leading-6">
                               {Object.keys(item.values)
-                                .map((field) => field.replace(/_/g, " ").toUpperCase())
+                                .map((field) =>
+                                  field.replace(/_/g, " ").toUpperCase()
+                                )
                                 .join(", ")}
                             </td>
                           </tr>
@@ -817,13 +878,14 @@ export default function OdistsParsingPage() {
                   </div>
                 </div>
 
-                <div className="flex shrink-0 items-center justify-between gap-3 border-t bg-background px-6 py-4">
-                  <span className="text-xs text-muted-foreground">
+                <div className="flex shrink-0 flex-col-reverse gap-2 border-t bg-background px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-6">
+                  <span className="hidden text-xs text-muted-foreground sm:inline">
                     Ctrl + Enter juga dapat digunakan untuk konfirmasi.
                   </span>
-                  <div className="flex gap-2">
+                  <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
                     <Button
                       variant="outline"
+                      className="w-full sm:w-auto"
                       onClick={() => setBatchConfirmOpen(false)}
                       disabled={batchSaving}
                     >
@@ -831,6 +893,7 @@ export default function OdistsParsingPage() {
                     </Button>
                     <Button
                       autoFocus
+                      className="w-full sm:w-auto"
                       onClick={() => void saveAllChanges()}
                       disabled={batchSaving}
                     >
@@ -847,24 +910,24 @@ export default function OdistsParsingPage() {
       )}
 
       {valuePickerField && (
-        <div className="fixed inset-0 z-[100] overflow-y-auto bg-black/50 p-4 sm:p-6">
-          <div className="flex min-h-full items-start justify-center py-4 sm:items-center">
-            <Card className="flex h-[min(760px,calc(100vh-3rem))] max-h-[calc(100vh-3rem)] w-full max-w-2xl flex-col overflow-hidden border bg-background shadow-2xl">
-              <CardHeader className="shrink-0 border-b bg-background px-6 pb-4 pt-6">
-                <CardTitle className="text-xl leading-7">
+        <div className="fixed inset-0 z-[100] overflow-y-auto bg-black/50 p-0 sm:p-6">
+          <div className="flex min-h-full items-start justify-center sm:items-center sm:py-4">
+            <Card className="flex h-[100dvh] max-h-[100dvh] w-full max-w-2xl flex-col overflow-hidden rounded-none border-0 bg-background shadow-2xl sm:h-[min(760px,calc(100vh-3rem))] sm:max-h-[calc(100vh-3rem)] sm:rounded-xl sm:border">
+              <CardHeader className="shrink-0 border-b bg-background px-4 py-4 sm:px-6 sm:pb-4 sm:pt-6">
+                <CardTitle className="break-words text-base leading-6 sm:text-xl sm:leading-7">
                   FILTER BY VALUE: {displayColumnName(valuePickerField)}
                 </CardTitle>
-                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                <p className="mt-1 text-xs leading-5 text-muted-foreground sm:text-sm sm:leading-6">
                   Daftar value mengikuti filter aktif pada kolom lain, seperti
                   filter Excel.
                 </p>
               </CardHeader>
 
               <CardContent className="flex min-h-0 flex-1 flex-col p-0 text-sm">
-                <div className="shrink-0 space-y-3 border-b bg-background px-6 py-4">
+                <div className="shrink-0 space-y-3 border-b bg-background px-4 py-3 sm:px-6 sm:py-4">
                   <Input
                     autoFocus
-                    className="h-11 text-sm"
+                    className="h-10 text-sm sm:h-11"
                     placeholder="Cari value..."
                     value={valuePickerSearch}
                     onChange={(event) =>
@@ -872,13 +935,14 @@ export default function OdistsParsingPage() {
                     }
                   />
 
-                  <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/30 px-4 py-3">
-                    <span className="font-medium">
+                  <div className="flex items-center justify-between gap-2 rounded-lg border bg-muted/30 px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3">
+                    <span className="text-xs font-medium sm:text-sm">
                       {selectedValues.length} value dipilih
                     </span>
                     <Button
                       size="sm"
                       variant="ghost"
+                      className="h-8 px-2 text-xs"
                       onClick={resetSelectedValues}
                     >
                       Reset pilihan
@@ -886,13 +950,14 @@ export default function OdistsParsingPage() {
                   </div>
 
                   {selectedValues.length > 0 && (
-                    <div className="flex max-h-24 flex-wrap gap-2 overflow-auto rounded-lg border bg-background p-3">
+                    <div className="flex max-h-24 flex-wrap gap-2 overflow-auto rounded-lg border bg-background p-2 sm:p-3">
                       {selectedValues.map((value) => (
                         <button
                           key={valueKey(value)}
                           type="button"
                           onClick={() => toggleSelectedValue(value)}
-                          className="rounded-full border bg-muted px-3 py-1.5 text-xs font-medium hover:bg-muted/70"
+                          className="max-w-full truncate rounded-full border bg-muted px-3 py-1.5 text-xs font-medium hover:bg-muted/70"
+                          title={value === null ? "NULL" : String(value)}
                         >
                           {value === null ? "NULL" : String(value)} ×
                         </button>
@@ -901,20 +966,20 @@ export default function OdistsParsingPage() {
                   )}
                 </div>
 
-                <div className="mx-6 my-4 min-h-0 flex-1 overflow-auto rounded-lg border">
+                <div className="mx-3 my-3 min-h-0 flex-1 overflow-auto rounded-lg border sm:mx-6 sm:my-4">
                   {valuePickerLoading ? (
                     <div className="p-6 text-center text-muted-foreground">
                       Memuat value terkait...
                     </div>
                   ) : (
-                    <table className="w-full text-sm">
+                    <table className="w-full table-fixed text-xs sm:text-sm">
                       <thead className="sticky top-0 z-10 bg-background shadow-sm">
                         <tr>
-                          <th className="w-12 border-b p-3"></th>
-                          <th className="border-b p-3 text-left font-semibold">
+                          <th className="w-10 border-b p-2 sm:w-12 sm:p-3"></th>
+                          <th className="border-b p-2 text-left font-semibold sm:p-3">
                             VALUE
                           </th>
-                          <th className="w-28 border-b p-3 text-right font-semibold">
+                          <th className="w-20 border-b p-2 text-right font-semibold sm:w-28 sm:p-3">
                             ROWS
                           </th>
                         </tr>
@@ -939,14 +1004,22 @@ export default function OdistsParsingPage() {
                                   )
                                 }
                               >
-                                <td className="border-b p-3 text-center">
+                                <td className="border-b p-2 text-center sm:p-3">
                                   <input
                                     type="checkbox"
+                                    className="h-4 w-4"
                                     checked={checked}
                                     readOnly
                                   />
                                 </td>
-                                <td className="break-words border-b p-3 leading-6">
+                                <td
+                                  className="break-words border-b p-2 leading-5 sm:p-3 sm:leading-6"
+                                  title={
+                                    item.value === null
+                                      ? "NULL"
+                                      : String(item.value)
+                                  }
+                                >
                                   {item.value === null ? (
                                     <span className="italic text-muted-foreground">
                                       NULL
@@ -955,7 +1028,7 @@ export default function OdistsParsingPage() {
                                     String(item.value)
                                   )}
                                 </td>
-                                <td className="border-b p-3 text-right tabular-nums">
+                                <td className="border-b p-2 text-right tabular-nums sm:p-3">
                                   {item.row_count}
                                 </td>
                               </tr>
@@ -976,18 +1049,28 @@ export default function OdistsParsingPage() {
                   )}
                 </div>
 
-                <div className="flex shrink-0 justify-between gap-3 border-t bg-background px-6 py-4">
-                  <Button variant="outline" onClick={resetSelectedValues}>
+                <div className="flex shrink-0 flex-col gap-2 border-t bg-background px-4 py-4 sm:flex-row sm:justify-between sm:gap-3 sm:px-6">
+                  <Button
+                    variant="outline"
+                    className="w-full sm:w-auto"
+                    onClick={resetSelectedValues}
+                  >
                     Reset
                   </Button>
-                  <div className="flex gap-2">
+                  <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
                     <Button
                       variant="outline"
+                      className="w-full sm:w-auto"
                       onClick={() => setValuePickerField(null)}
                     >
                       Cancel
                     </Button>
-                    <Button onClick={applySelectedValues}>OK</Button>
+                    <Button
+                      className="w-full sm:w-auto"
+                      onClick={applySelectedValues}
+                    >
+                      OK
+                    </Button>
                   </div>
                 </div>
               </CardContent>
