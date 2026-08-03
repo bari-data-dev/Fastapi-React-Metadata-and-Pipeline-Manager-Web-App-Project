@@ -9,7 +9,8 @@ import importlib
 # -------------------------
 # Load .env file (simple parser) so settings work even if pydantic .env not used
 # -------------------------
-ENV_PATH = Path("D:/data_platform/.env").resolve()  # sesuaikan jika perlu
+PROJECT_ROOT = Path(os.getenv("PROJECT_ROOT", "/srv/data_platform")).resolve()
+ENV_PATH = PROJECT_ROOT / ".env"
 
 def _load_dotenv(path: Path) -> None:
     """
