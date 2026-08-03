@@ -25,7 +25,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { authApi } from "@/lib/appApi";
 import { useToast } from "@/hooks/use-toast";
 
-
 export function Header() {
   const navigate = useNavigate();
   const { state: sidebarState } = useSidebar();
@@ -72,7 +71,8 @@ export function Header() {
       toast({
         variant: "destructive",
         title: "Akses Prefect UI ditolak",
-        description: error instanceof Error ? error.message : "Password orchestrator salah",
+        description:
+          error instanceof Error ? error.message : "Password orchestrator salah",
       });
     } finally {
       setOrchestratorLoading(false);
@@ -80,53 +80,71 @@ export function Header() {
   };
 
   const lgLeftClass = isCollapsed ? "lg:left-16" : "lg:left-64";
+  const displayName = user?.full_name || user?.username || "User";
 
   return (
     <>
       <header
-        className={`fixed top-0 left-0 right-0 h-16 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-50 transition-all duration-300 ${lgLeftClass}`}
+        className={`fixed left-0 right-0 top-0 z-50 h-16 border-b border-border bg-background/95 backdrop-blur transition-all duration-300 supports-[backdrop-filter]:bg-background/60 ${lgLeftClass}`}
       >
-        <div className="flex h-full items-center justify-between px-6">
-          <div className="flex items-center space-x-4">
-            <SidebarTrigger className="lg:hidden" />
-            <div className="hidden lg:block min-w-0">
-              <h1 className="text-lg font-semibold text-foreground truncate">
+        <div className="flex h-full min-w-0 items-center justify-between gap-2 px-3 sm:px-4 lg:px-6">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-4">
+            <SidebarTrigger className="shrink-0 lg:hidden" />
+            <div className="hidden min-w-0 lg:block">
+              <h1 className="truncate text-lg font-semibold text-foreground">
                 Data Pipeline Management
               </h1>
-              <p className="text-sm text-muted-foreground truncate">
+              <p className="truncate text-sm text-muted-foreground">
                 Monitor and manage your metadata configurations
               </p>
             </div>
           </div>
 
-          <div className="flex items-center space-x-3 flex-shrink-0">
+          <div className="flex min-w-0 shrink-0 items-center gap-1 sm:gap-2 md:gap-3">
             <Button
               variant="outline"
               size="sm"
-              className="hidden md:flex items-center space-x-2"
+              className="hidden items-center gap-2 md:flex"
               onClick={() => setOrchestratorDialogOpen(true)}
             >
               <ExternalLink className="h-4 w-4" />
               <span>Prefect UI</span>
             </Button>
 
-            <Button variant="ghost" size="sm" onClick={handleHomeClick} aria-label="Home">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 shrink-0"
+              onClick={handleHomeClick}
+              aria-label="Home"
+            >
               <Home className="h-4 w-4" />
             </Button>
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="h-9 px-3 font-medium">
-                  {user?.full_name || user?.username || "User"}
+                <Button
+                  variant="ghost"
+                  className="h-9 min-w-0 max-w-40 gap-2 px-2 sm:max-w-56 sm:px-3"
+                  aria-label={`Menu akun ${displayName}`}
+                >
+                  <User className="h-4 w-4 shrink-0 sm:hidden" />
+                  <span className="hidden truncate font-medium sm:inline">
+                    {displayName}
+                  </span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-64 bg-popover" align="end" forceMount>
+              <DropdownMenuContent
+                className="w-[calc(100vw-2rem)] max-w-64 bg-popover"
+                align="end"
+                forceMount
+              >
                 <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">
+                  <div className="flex min-w-0 flex-col space-y-1">
+                    <p className="truncate text-sm font-medium leading-none">
                       {user?.full_name || "User"}
                     </p>
-                    <p className="text-xs leading-none text-muted-foreground">
+                    <p className="truncate text-xs leading-none text-muted-foreground">
                       {user?.username}
                     </p>
                   </div>
@@ -141,7 +159,10 @@ export function Header() {
                   <span>Settings</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
+                <DropdownMenuItem
+                  onClick={handleLogout}
+                  className="text-destructive focus:text-destructive"
+                >
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Log out</span>
                 </DropdownMenuItem>
@@ -160,7 +181,7 @@ export function Header() {
           }
         }}
       >
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="w-[calc(100vw-2rem)] rounded-lg sm:max-w-md">
           <form onSubmit={handleOrchestratorSubmit}>
             <DialogHeader>
               <DialogTitle>Akses Prefect UI</DialogTitle>
@@ -169,7 +190,7 @@ export function Header() {
               </DialogDescription>
             </DialogHeader>
 
-            <div className="py-5 space-y-2">
+            <div className="space-y-2 py-5">
               <Label htmlFor="orchestrator-password">Password orchestrator</Label>
               <Input
                 id="orchestrator-password"
@@ -183,10 +204,11 @@ export function Header() {
               />
             </div>
 
-            <DialogFooter>
+            <DialogFooter className="gap-2 sm:gap-0">
               <Button
                 type="button"
                 variant="outline"
+                className="w-full sm:w-auto"
                 disabled={orchestratorLoading}
                 onClick={() => {
                   setOrchestratorDialogOpen(false);
@@ -195,7 +217,11 @@ export function Header() {
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={!orchestratorPassword || orchestratorLoading}>
+              <Button
+                type="submit"
+                className="w-full sm:w-auto"
+                disabled={!orchestratorPassword || orchestratorLoading}
+              >
                 {orchestratorLoading ? "Memeriksa..." : "Buka Prefect UI"}
               </Button>
             </DialogFooter>
