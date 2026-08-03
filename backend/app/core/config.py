@@ -41,6 +41,17 @@ class Settings:
     DB_ENCRYPT: bool
     DB_TRUST_CERT: bool
 
+    MYSQL_PIPELINE_HOST: str
+    MYSQL_PIPELINE_PORT: int
+    MYSQL_PIPELINE_DBNAME: str
+    MYSQL_PIPELINE_USER: str
+    MYSQL_PIPELINE_PASSWORD: str
+    MYSQL_PIPELINE_CHARSET: str
+    MYSQL_PIPELINE_SSL_DISABLED: bool
+    MYSQL_PIPELINE_CONNECT_TIMEOUT: int
+    MYSQL_PIPELINE_READ_TIMEOUT: int
+    MYSQL_PIPELINE_WRITE_TIMEOUT: int
+
     APP_HOST: str
     APP_PORT: int
     CORS_ORIGINS: str
@@ -65,6 +76,17 @@ class Settings:
 
         self.DB_ENCRYPT = _bool_from_env("DB_ENCRYPT", False) or _bool_from_env("MSSQL_ENCRYPT", False)
         self.DB_TRUST_CERT = _bool_from_env("DB_TRUST_CERT", True) or _bool_from_env("MSSQL_TRUST_CERT", True)
+
+        self.MYSQL_PIPELINE_HOST = os.getenv("MYSQL_PIPELINE_HOST", "")
+        self.MYSQL_PIPELINE_PORT = int(os.getenv("MYSQL_PIPELINE_PORT", "3306"))
+        self.MYSQL_PIPELINE_DBNAME = os.getenv("MYSQL_PIPELINE_DBNAME", "pipeline_bigdata")
+        self.MYSQL_PIPELINE_USER = os.getenv("MYSQL_PIPELINE_USER", "")
+        self.MYSQL_PIPELINE_PASSWORD = os.getenv("MYSQL_PIPELINE_PASSWORD", "")
+        self.MYSQL_PIPELINE_CHARSET = os.getenv("MYSQL_PIPELINE_CHARSET", "utf8mb4")
+        self.MYSQL_PIPELINE_SSL_DISABLED = _bool_from_env("MYSQL_PIPELINE_SSL_DISABLED", True)
+        self.MYSQL_PIPELINE_CONNECT_TIMEOUT = int(os.getenv("MYSQL_PIPELINE_CONNECT_TIMEOUT", "30"))
+        self.MYSQL_PIPELINE_READ_TIMEOUT = int(os.getenv("MYSQL_PIPELINE_READ_TIMEOUT", "600"))
+        self.MYSQL_PIPELINE_WRITE_TIMEOUT = int(os.getenv("MYSQL_PIPELINE_WRITE_TIMEOUT", "600"))
 
         self.APP_HOST = os.getenv("APP_HOST", "0.0.0.0")
         self.APP_PORT = int(os.getenv("APP_PORT", "8000"))
@@ -118,6 +140,30 @@ class Settings:
         return (
             f"mssql+pyodbc://{user_enc}:{pwd_enc}@{self.DB_HOST},{self.DB_PORT}/{self.DB_NAME}"
             f"?driver={driver_enc}&Encrypt={encrypt}&TrustServerCertificate={trust_cert}"
+        )
+
+    @property
+    def MYSQL_PIPELINE_DATABASE_URL(self) -> str:
+        if not (
+            self.MYSQL_PIPELINE_HOST
+            and self.MYSQL_PIPELINE_DBNAME
+            and self.MYSQL_PIPELINE_USER
+            and self.MYSQL_PIPELINE_PASSWORD
+        ):
+            raise RuntimeError(
+                "Konfigurasi MySQL pipeline belum lengkap. Isi MYSQL_PIPELINE_HOST, "
+                "MYSQL_PIPELINE_DBNAME, MYSQL_PIPELINE_USER, dan MYSQL_PIPELINE_PASSWORD."
+            )
+
+        user_enc = urllib.parse.quote_plus(self.MYSQL_PIPELINE_USER)
+        password_enc = urllib.parse.quote_plus(self.MYSQL_PIPELINE_PASSWORD)
+        database_enc = urllib.parse.quote_plus(self.MYSQL_PIPELINE_DBNAME)
+        charset_enc = urllib.parse.quote_plus(self.MYSQL_PIPELINE_CHARSET)
+
+        return (
+            f"mysql+pymysql://{user_enc}:{password_enc}@"
+            f"{self.MYSQL_PIPELINE_HOST}:{self.MYSQL_PIPELINE_PORT}/{database_enc}"
+            f"?charset={charset_enc}"
         )
 
 
