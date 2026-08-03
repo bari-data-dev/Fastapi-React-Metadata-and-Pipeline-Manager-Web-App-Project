@@ -10,7 +10,7 @@ from app.schemas.odists_parsing import (
     OdistsPage,
     OdistsUpdateRequest,
 )
-from app.services import odists_parsing_service
+from app.services import odists_parsing_service, parsing_baseline_service
 from app.types import ApiResponse
 
 
@@ -66,6 +66,11 @@ def update_odists_batch(
     audit_db: Session = Depends(get_session),
     current_user: AppUser = Depends(get_current_user),
 ):
+    parsing_baseline_service.ensure_baselines_before_update(
+        mysql_db=mysql_db,
+        audit_db=audit_db,
+        odist_ids=[item.id for item in payload.items],
+    )
     result = odists_parsing_service.update_rows(
         mysql_db=mysql_db,
         audit_db=audit_db,
@@ -87,6 +92,11 @@ def update_odist(
     audit_db: Session = Depends(get_session),
     current_user: AppUser = Depends(get_current_user),
 ):
+    parsing_baseline_service.ensure_baselines_before_update(
+        mysql_db=mysql_db,
+        audit_db=audit_db,
+        odist_ids=[odist_id],
+    )
     updated = odists_parsing_service.update_row(
         mysql_db=mysql_db,
         audit_db=audit_db,
