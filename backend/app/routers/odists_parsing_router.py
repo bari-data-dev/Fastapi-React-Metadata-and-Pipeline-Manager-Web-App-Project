@@ -4,7 +4,12 @@ from sqlmodel import Session
 from app.core.auth_dependencies import get_current_user
 from app.db.database import get_mysql_pipeline_session, get_session
 from app.models.app_user import AppUser
-from app.schemas.odists_parsing import OdistsPage, OdistsUpdateRequest
+from app.schemas.odists_parsing import (
+    OdistsBatchUpdateRequest,
+    OdistsBatchUpdateResult,
+    OdistsPage,
+    OdistsUpdateRequest,
+)
 from app.services import odists_parsing_service
 from app.types import ApiResponse
 
@@ -50,6 +55,26 @@ def get_distinct_values(
         limit=limit,
     )
     return ApiResponse(success=True, data=values)
+
+
+@router.put("/batch", response_model=ApiResponse[OdistsBatchUpdateResult])
+def update_odists_batch(
+    payload: OdistsBatchUpdateRequest,
+    mysql_db: Session = Depends(get_mysql_pipeline_session),
+    audit_db: Session = Depends(get_session),
+    current_user: AppUser = Depends(get_current_user),
+):
+    result = odists_parsing_service.update_rows(
+        mysql_db=mysql_db,
+        audit_db=audit_db,
+        items=[item.dict() for item in payload.items],
+        current_user=current_user,
+    )
+    return ApiResponse(
+        success=True,
+        data=OdistsBatchUpdateResult(**result),
+        message=f"{result['updated_count']} row ODIST berhasil diperbarui",
+    )
 
 
 @router.put("/{odist_id}", response_model=ApiResponse[dict])
