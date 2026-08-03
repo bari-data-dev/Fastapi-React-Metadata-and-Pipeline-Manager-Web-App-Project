@@ -1,9 +1,11 @@
+import secrets
 from typing import List
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session
 
 from app.core.auth_dependencies import get_current_user, require_admin
+from app.core.config import settings
 from app.core.security import create_access_token
 from app.db.database import get_session
 from app.models.app_user import AppUser
@@ -13,6 +15,7 @@ from app.schemas.auth import (
     AppUserUpdate,
     LoginRequest,
     LoginResponse,
+    OrchestratorAccessRequest,
 )
 from app.services import auth_service
 from app.types import ApiResponse
@@ -42,6 +45,30 @@ def login(payload: LoginRequest, db: Session = Depends(get_session)):
 @router.get("/me", response_model=ApiResponse[AppUserRead])
 def get_logged_in_user(current_user: AppUser = Depends(get_current_user)):
     return ApiResponse(success=True, data=AppUserRead.from_orm(current_user))
+
+
+@router.post("/orchestrator-access", response_model=ApiResponse[dict])
+def validate_orchestrator_access(
+    payload: OrchestratorAccessRequest,
+    _: AppUser = Depends(get_current_user),
+):
+    if not settings.ORCHESTRATOR_PASSWORD:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Password orchestrator belum dikonfigurasi pada server",
+        )
+
+    if not secrets.compare_digest(payload.password, settings.ORCHESTRATOR_PASSWORD):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Password orchestrator salah",
+        )
+
+    return ApiResponse(
+        success=True,
+        data={"url": settings.PREFECT_UI_URL},
+        message="Akses orchestrator disetujui",
+    )
 
 
 @router.get("/users", response_model=ApiResponse[List[AppUserRead]])
