@@ -20,6 +20,19 @@ BEGIN
     );
 END;
 
+IF EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE object_id = OBJECT_ID(N'[tools].[odists_parsing_baseline]')
+      AND name = N'PK_odists_parsing_baseline'
+      AND ignore_dup_key = 0
+)
+BEGIN
+    ALTER INDEX [PK_odists_parsing_baseline]
+        ON [tools].[odists_parsing_baseline]
+        REBUILD WITH (IGNORE_DUP_KEY = ON);
+END;
+
 IF COL_LENGTH(N'tools.odists_parsing_audit_log', N'actor_full_name') IS NULL
 BEGIN
     ALTER TABLE [tools].[odists_parsing_audit_log]
