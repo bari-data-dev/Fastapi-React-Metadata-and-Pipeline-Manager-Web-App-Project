@@ -40,6 +40,16 @@ export type DistinctValue = {
   row_count: number;
 };
 
+export type OdistsBatchUpdateItem = {
+  id: number;
+  values: Record<string, unknown>;
+};
+
+export type OdistsBatchUpdateResult = {
+  updated_count: number;
+  updated_ids: number[];
+};
+
 function getToken(): string | null {
   return localStorage.getItem("metadata_app_token");
 }
@@ -121,5 +131,10 @@ export const odistsApi = {
     appFetch<Record<string, unknown>>(`/odists-parsing/${id}`, {
       method: "PUT",
       body: JSON.stringify({ values }),
+    }),
+  updateBatch: (items: OdistsBatchUpdateItem[]) =>
+    appFetch<OdistsBatchUpdateResult>("/odists-parsing/batch", {
+      method: "PUT",
+      body: JSON.stringify({ items }),
     }),
 };
