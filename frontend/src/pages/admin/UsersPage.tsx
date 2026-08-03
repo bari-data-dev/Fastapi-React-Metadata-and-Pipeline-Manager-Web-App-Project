@@ -6,6 +6,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+function formatDateTime(value?: string | null) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("id-ID", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).format(date);
+}
 
 export default function UsersPage() {
   const { user } = useAuth();
@@ -71,7 +85,7 @@ export default function UsersPage() {
         <CardContent className="pt-6 overflow-auto">
           <table className="w-full text-sm">
             <thead><tr>{["ID", "Username", "Nama", "Role", "Status", "Last Login", "Action"].map((head) => <th key={head} className="text-left border-b p-2">{head}</th>)}</tr></thead>
-            <tbody>{users.map((item) => <tr key={item.user_id}><td className="border-b p-2">{item.user_id}</td><td className="border-b p-2">{item.username}</td><td className="border-b p-2">{item.full_name}</td><td className="border-b p-2">{item.role}</td><td className="border-b p-2">{item.is_active ? "ACTIVE" : "INACTIVE"}</td><td className="border-b p-2">{item.last_login_at || "-"}</td><td className="border-b p-2"><Button size="sm" variant="outline" disabled={item.user_id === user.user_id} onClick={() => void toggleActive(item)}>{item.is_active ? "Nonaktifkan" : "Aktifkan"}</Button></td></tr>)}</tbody>
+            <tbody>{users.map((item) => <tr key={item.user_id}><td className="border-b p-2">{item.user_id}</td><td className="border-b p-2">{item.username}</td><td className="border-b p-2">{item.full_name}</td><td className="border-b p-2">{item.role}</td><td className="border-b p-2">{item.is_active ? "ACTIVE" : "INACTIVE"}</td><td className="border-b p-2 whitespace-nowrap">{formatDateTime(item.last_login_at)}</td><td className="border-b p-2"><Button size="sm" variant="outline" disabled={item.user_id === user.user_id} onClick={() => void toggleActive(item)}>{item.is_active ? "Nonaktifkan" : "Aktifkan"}</Button></td></tr>)}</tbody>
           </table>
         </CardContent>
       </Card>
