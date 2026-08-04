@@ -46,10 +46,29 @@ class AppUserCreate(BaseModel):
 
 
 class AppUserUpdate(BaseModel):
+    username: Optional[str] = Field(None, min_length=3, max_length=100)
     full_name: Optional[str] = Field(None, min_length=1, max_length=191)
     role: Optional[UserRole] = None
     is_active: Optional[bool] = None
     password: Optional[str] = Field(None, min_length=8, max_length=128)
+
+    @validator("username")
+    def normalize_update_username(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        normalized = value.strip().lower()
+        if not normalized:
+            raise ValueError("Username wajib diisi")
+        return normalized
+
+    @validator("full_name")
+    def normalize_update_full_name(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("Nama lengkap wajib diisi")
+        return normalized
 
 
 class AppUserRead(BaseModel):
