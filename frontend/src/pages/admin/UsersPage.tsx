@@ -1,5 +1,6 @@
-import { FormEvent, useEffect, useState } from "react";
-import { AppUser, authApi } from "@/lib/appApi";
+import { FormEvent, useEffect, useRef, useState } from "react";
+import { Navigate } from "react-router-dom";
+import { AppRole, AppUser, authApi } from "@/lib/appApi";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,6 +11,28 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
+
+const ROLE_OPTIONS: AppRole[] = [
+  "ADMIN",
+  "PARSER-TEAM",
+  "PARSER-INTERN",
+  "MANAGER",
+];
+
+type UserForm = {
+  username: string;
+  full_name: string;
+  password: string;
+  role: AppRole;
+};
+
+const EMPTY_FORM: UserForm = {
+  username: "",
+  full_name: "",
+  password: "",
+  role: "PARSER-TEAM",
+};
 
 function formatDateTime(value?: string | null) {
   if (!value) return "-";
@@ -26,36 +49,102 @@ function formatDateTime(value?: string | null) {
   }).format(date);
 }
 
-type UserRole = "ADMIN" | "PARSER";
+function RoleBadge({ role }: { role: AppRole }) {
+  const classes: Record<AppRole, string> = {
+    ADMIN:
+      "border-violet-300 bg-violet-50 text-violet-700 dark:border-violet-900 dark:bg-violet-950/30 dark:text-violet-300",
+    MANAGER:
+      "border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-300",
+    "PARSER-TEAM":
+      "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300",
+    "PARSER-INTERN":
+      "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300",
+  };
 
-type UserForm = {
-  username: string;
-  full_name: string;
-  password: string;
-  role: UserRole;
-  is_active: boolean;
-};
+  return (
+    <span
+      className={cn(
+        "inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold",
+        classes[role]
+      )}
+    >
+      {role}
+    </span>
+  );
+}
 
-const EMPTY_CREATE_FORM: UserForm = {
-  username: "",
-  full_name: "",
-  password: "",
-  role: "PARSER",
-  is_active: true,
-};
+function StatusSwitch({
+  checked,
+  disabled,
+  busy,
+  onChange,
+}: {
+  checked: boolean;
+  disabled: boolean;
+  busy: boolean;
+  onChange: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-3">
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        disabled={disabled}
+        onClick={onChange}
+        className={cn(
+          "relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:ring-offset-2",
+          checked
+            ? "border-emerald-500 bg-emerald-500"
+            : "border-slate-300 bg-slate-300 dark:border-slate-700 dark:bg-slate-700",
+          disabled && "cursor-not-allowed opacity-50",
+          busy && "animate-pulse"
+        )}
+      >
+        <span
+          className={cn(
+            "h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200",
+            checked ? "translate-x-6" : "translate-x-1"
+          )}
+        />
+      </button>
+      <span
+        className={cn(
+          "min-w-16 text-xs font-semibold",
+          checked ? "text-emerald-700 dark:text-emerald-300" : "text-muted-foreground"
+        )}
+      >
+        {busy ? "SAVING" : checked ? "ACTIVE" : "INACTIVE"}
+      </span>
+    </div>
+  );
+}
 
 export default function UsersPage() {
-  const { user } = useAuth();
+  const { user, updateCurrentUser } = useAuth();
   const [users, setUsers] = useState<AppUser[]>([]);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
-  const [createForm, setCreateForm] =
-    useState<UserForm>(EMPTY_CREATE_FORM);
+  const [togglingIds, setTogglingIds] = useState<Set<number>>(new Set());
+  const [createForm, setCreateForm] = useState<UserForm>(EMPTY_FORM);
   const [editingUser, setEditingUser] = useState<AppUser | null>(null);
-  const [editForm, setEditForm] = useState<UserForm>(EMPTY_CREATE_FORM);
+  const [editForm, setEditForm] = useState<UserForm>(EMPTY_FORM);
+  const noticeTimer = useRef<number | null>(null);
+
+  const canView = Boolean(
+    user && ["ADMIN", "MANAGER", "PARSER-TEAM"].includes(user.role)
+  );
+  const canCreateOrEdit = user?.role === "ADMIN";
+  const canToggle = user?.role === "ADMIN" || user?.role === "MANAGER";
+
+  const showSuccess = (message: string) => {
+    setSuccess(message);
+    if (noticeTimer.current) window.clearTimeout(noticeTimer.current);
+    noticeTimer.current = window.setTimeout(() => setSuccess(""), 2500);
+  };
 
   const load = async () => {
     setLoading(true);
@@ -71,19 +160,32 @@ export default function UsersPage() {
   };
 
   useEffect(() => {
-    if (user?.role === "ADMIN") void load();
-  }, [user?.role]);
+    if (canView) void load();
+    return () => {
+      if (noticeTimer.current) window.clearTimeout(noticeTimer.current);
+    };
+  }, [canView]);
+
+  if (!user || !canView) {
+    return <Navigate to="/" replace />;
+  }
 
   const submitCreate = async (event: FormEvent) => {
     event.preventDefault();
-    setError("");
-    setSuccess("");
+    if (!canCreateOrEdit) return;
+
     setCreating(true);
+    setError("");
     try {
-      await authApi.createUser(createForm);
-      setCreateForm(EMPTY_CREATE_FORM);
-      setSuccess("User baru berhasil dibuat.");
-      await load();
+      const response = await authApi.createUser({
+        ...createForm,
+        is_active: true,
+      });
+      setUsers((current) =>
+        [...current, response.data].sort((a, b) => a.user_id - b.user_id)
+      );
+      setCreateForm(EMPTY_FORM);
+      showSuccess("User baru berhasil dibuat.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Gagal membuat user");
     } finally {
@@ -92,57 +194,49 @@ export default function UsersPage() {
   };
 
   const openEdit = (item: AppUser) => {
+    if (!canCreateOrEdit) return;
     setError("");
-    setSuccess("");
     setEditingUser(item);
     setEditForm({
       username: item.username,
       full_name: item.full_name,
       password: "",
       role: item.role,
-      is_active: item.is_active,
     });
   };
 
   const closeEdit = () => {
     if (savingEdit) return;
     setEditingUser(null);
-    setEditForm(EMPTY_CREATE_FORM);
+    setEditForm(EMPTY_FORM);
   };
 
   const submitEdit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!editingUser) return;
-
-    setError("");
-    setSuccess("");
-    setSavingEdit(true);
+    if (!editingUser || !canCreateOrEdit) return;
 
     const payload: Record<string, unknown> = {
       username: editForm.username,
       full_name: editForm.full_name,
       role: editForm.role,
-      is_active: editForm.is_active,
     };
-    if (editForm.password.trim()) {
-      payload.password = editForm.password;
-    }
+    if (editForm.password.trim()) payload.password = editForm.password;
 
+    setSavingEdit(true);
+    setError("");
     try {
       const response = await authApi.updateUser(editingUser.user_id, payload);
-      const editedOwnAccount = editingUser.user_id === user?.user_id;
-      setEditingUser(null);
-      setEditForm(EMPTY_CREATE_FORM);
-      setSuccess("Data user berhasil diperbarui.");
-      await load();
-
-      if (editedOwnAccount) {
-        localStorage.setItem(
-          "metadata_app_user",
-          JSON.stringify(response.data)
-        );
-        window.location.reload();
+      setUsers((current) =>
+        current.map((item) =>
+          item.user_id === response.data.user_id ? response.data : item
+        )
+      );
+      if (response.data.user_id === user.user_id) {
+        updateCurrentUser(response.data);
       }
+      setEditingUser(null);
+      setEditForm(EMPTY_FORM);
+      showSuccess("Data user berhasil diperbarui.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Gagal memperbarui user");
     } finally {
@@ -151,38 +245,57 @@ export default function UsersPage() {
   };
 
   const toggleActive = async (item: AppUser) => {
+    if (!canToggle || item.user_id === user.user_id || togglingIds.has(item.user_id)) {
+      return;
+    }
+
+    const nextActive = !item.is_active;
     setError("");
-    setSuccess("");
+    setTogglingIds((current) => new Set(current).add(item.user_id));
+    setUsers((current) =>
+      current.map((row) =>
+        row.user_id === item.user_id ? { ...row, is_active: nextActive } : row
+      )
+    );
+
     try {
-      await authApi.updateUser(item.user_id, {
-        is_active: !item.is_active,
+      const response = await authApi.updateUser(item.user_id, {
+        is_active: nextActive,
       });
-      setSuccess(
-        item.is_active
-          ? `${item.full_name} berhasil dinonaktifkan.`
-          : `${item.full_name} berhasil diaktifkan.`
+      setUsers((current) =>
+        current.map((row) =>
+          row.user_id === response.data.user_id ? response.data : row
+        )
       );
-      await load();
+      showSuccess(
+        `${response.data.full_name} ${nextActive ? "diaktifkan" : "dinonaktifkan"}.`
+      );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Gagal mengubah user");
+      setUsers((current) =>
+        current.map((row) =>
+          row.user_id === item.user_id ? { ...row, is_active: item.is_active } : row
+        )
+      );
+      setError(err instanceof Error ? err.message : "Gagal mengubah status user");
+    } finally {
+      setTogglingIds((current) => {
+        const next = new Set(current);
+        next.delete(item.user_id);
+        return next;
+      });
     }
   };
-
-  if (user?.role !== "ADMIN") {
-    return (
-      <div className="p-6 text-destructive">
-        Halaman ini hanya untuk ADMIN.
-      </div>
-    );
-  }
 
   return (
     <div className="min-w-0 space-y-4 p-3 sm:p-6">
       <div>
         <h1 className="text-xl font-bold sm:text-2xl">User Management</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Tambah dan perbarui akun ADMIN atau PARSER. Akun tidak dihapus;
-          gunakan status INACTIVE untuk menonaktifkan akses.
+          {canCreateOrEdit
+            ? "ADMIN dapat menambah dan mengubah detail anggota. Status akses diatur langsung dari toggle tabel."
+            : user.role === "MANAGER"
+              ? "MANAGER hanya dapat mengaktifkan atau menonaktifkan anggota."
+              : "PARSER-TEAM memiliki akses lihat saja ke daftar anggota."}
         </p>
       </div>
 
@@ -192,89 +305,94 @@ export default function UsersPage() {
         </p>
       )}
       {success && (
-        <p className="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300">
+        <p className="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 transition-all dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300">
           {success}
         </p>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Tambah User</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form
-            onSubmit={submitCreate}
-            className="grid grid-cols-1 items-end gap-3 md:grid-cols-2 xl:grid-cols-5"
-          >
-            <div className="space-y-1.5">
-              <Label>Username</Label>
-              <Input
-                value={createForm.username}
-                onChange={(event) =>
-                  setCreateForm((current) => ({
-                    ...current,
-                    username: event.target.value,
-                  }))
-                }
-                required
-                minLength={3}
-                maxLength={100}
-                autoComplete="off"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Nama Lengkap</Label>
-              <Input
-                value={createForm.full_name}
-                onChange={(event) =>
-                  setCreateForm((current) => ({
-                    ...current,
-                    full_name: event.target.value,
-                  }))
-                }
-                required
-                maxLength={191}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Password</Label>
-              <Input
-                type="password"
-                value={createForm.password}
-                onChange={(event) =>
-                  setCreateForm((current) => ({
-                    ...current,
-                    password: event.target.value,
-                  }))
-                }
-                required
-                minLength={8}
-                maxLength={128}
-                autoComplete="new-password"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Role</Label>
-              <select
-                className="h-10 w-full rounded-md border bg-background px-3"
-                value={createForm.role}
-                onChange={(event) =>
-                  setCreateForm((current) => ({
-                    ...current,
-                    role: event.target.value as UserRole,
-                  }))
-                }
-              >
-                <option value="PARSER">PARSER</option>
-                <option value="ADMIN">ADMIN</option>
-              </select>
-            </div>
-            <Button type="submit" disabled={creating}>
-              {creating ? "Menambahkan..." : "Tambah User"}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+      {canCreateOrEdit && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Tambah User</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form
+              onSubmit={submitCreate}
+              className="grid grid-cols-1 items-end gap-3 md:grid-cols-2 xl:grid-cols-5"
+            >
+              <div className="space-y-1.5">
+                <Label>Username</Label>
+                <Input
+                  value={createForm.username}
+                  onChange={(event) =>
+                    setCreateForm((current) => ({
+                      ...current,
+                      username: event.target.value,
+                    }))
+                  }
+                  required
+                  minLength={3}
+                  maxLength={100}
+                  autoComplete="off"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Nama Lengkap</Label>
+                <Input
+                  value={createForm.full_name}
+                  onChange={(event) =>
+                    setCreateForm((current) => ({
+                      ...current,
+                      full_name: event.target.value,
+                    }))
+                  }
+                  required
+                  maxLength={191}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Password</Label>
+                <Input
+                  type="password"
+                  value={createForm.password}
+                  onChange={(event) =>
+                    setCreateForm((current) => ({
+                      ...current,
+                      password: event.target.value,
+                    }))
+                  }
+                  required
+                  minLength={8}
+                  maxLength={128}
+                  autoComplete="new-password"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Role</Label>
+                <select
+                  className="h-10 w-full rounded-md border bg-background px-3"
+                  value={createForm.role}
+                  onChange={(event) =>
+                    setCreateForm((current) => ({
+                      ...current,
+                      role: event.target.value as AppRole,
+                    }))
+                  }
+                >
+                  {ROLE_OPTIONS.map((role) => (
+                    <option key={role} value={role}>
+                      {role}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <Button type="submit" disabled={creating}>
+                {creating ? "Menambahkan..." : "Tambah User"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="min-w-0 overflow-hidden">
         <CardHeader className="pb-3">
@@ -282,7 +400,7 @@ export default function UsersPage() {
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[980px] text-sm">
+            <table className="w-full min-w-[1040px] text-sm">
               <thead className="bg-muted/50">
                 <tr>
                   {[
@@ -290,7 +408,7 @@ export default function UsersPage() {
                     "USERNAME",
                     "NAMA LENGKAP",
                     "ROLE",
-                    "STATUS",
+                    "STATUS AKSES",
                     "LAST LOGIN",
                     "UPDATED AT",
                     "ACTION",
@@ -307,18 +425,17 @@ export default function UsersPage() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={8} className="p-8 text-center">
+                    <td colSpan={8} className="p-8 text-center text-muted-foreground">
                       Memuat user...
                     </td>
                   </tr>
                 ) : users.length ? (
                   users.map((item) => {
                     const isOwnAccount = item.user_id === user.user_id;
+                    const busy = togglingIds.has(item.user_id);
                     return (
                       <tr key={item.user_id} className="hover:bg-muted/30">
-                        <td className="border-b p-3 tabular-nums">
-                          {item.user_id}
-                        </td>
+                        <td className="border-b p-3 tabular-nums">{item.user_id}</td>
                         <td className="border-b p-3 font-medium">
                           {item.username}
                           {isOwnAccount && (
@@ -328,17 +445,16 @@ export default function UsersPage() {
                           )}
                         </td>
                         <td className="border-b p-3">{item.full_name}</td>
-                        <td className="border-b p-3">{item.role}</td>
                         <td className="border-b p-3">
-                          <span
-                            className={
-                              item.is_active
-                                ? "rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300"
-                                : "rounded-full border border-slate-300 bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
-                            }
-                          >
-                            {item.is_active ? "ACTIVE" : "INACTIVE"}
-                          </span>
+                          <RoleBadge role={item.role} />
+                        </td>
+                        <td className="border-b p-3">
+                          <StatusSwitch
+                            checked={item.is_active}
+                            busy={busy}
+                            disabled={!canToggle || isOwnAccount || busy}
+                            onChange={() => void toggleActive(item)}
+                          />
                         </td>
                         <td className="whitespace-nowrap border-b p-3">
                           {formatDateTime(item.last_login_at)}
@@ -347,33 +463,30 @@ export default function UsersPage() {
                           {formatDateTime(item.updated_at)}
                         </td>
                         <td className="border-b p-3">
-                          <div className="flex gap-2">
+                          {canCreateOrEdit ? (
                             <Button
                               size="sm"
                               variant="outline"
                               onClick={() => openEdit(item)}
                             >
-                              Edit
+                              Edit Detail
                             </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={isOwnAccount}
-                              onClick={() => void toggleActive(item)}
-                            >
-                              {item.is_active ? "Nonaktifkan" : "Aktifkan"}
-                            </Button>
-                          </div>
+                          ) : canToggle ? (
+                            <span className="text-xs text-muted-foreground">
+                              Gunakan toggle status
+                            </span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">
+                              View only
+                            </span>
+                          )}
                         </td>
                       </tr>
                     );
                   })
                 ) : (
                   <tr>
-                    <td
-                      colSpan={8}
-                      className="p-8 text-center text-muted-foreground"
-                    >
+                    <td colSpan={8} className="p-8 text-center text-muted-foreground">
                       Belum ada user.
                     </td>
                   </tr>
@@ -384,7 +497,7 @@ export default function UsersPage() {
         </CardContent>
       </Card>
 
-      {editingUser && (
+      {editingUser && canCreateOrEdit && (
         <div
           className="fixed inset-0 z-[120] overflow-y-auto bg-black/50 p-0 sm:p-6"
           onPointerDown={(event) => {
@@ -398,7 +511,7 @@ export default function UsersPage() {
                   Edit User #{editingUser.user_id}
                 </CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  Kosongkan password bila password lama tidak ingin diubah.
+                  Status ACTIVE/INACTIVE tidak diubah di form ini. Gunakan toggle pada tabel.
                 </p>
               </CardHeader>
               <CardContent className="flex-1 p-4 sm:p-6">
@@ -460,39 +573,20 @@ export default function UsersPage() {
                         onChange={(event) =>
                           setEditForm((current) => ({
                             ...current,
-                            role: event.target.value as UserRole,
+                            role: event.target.value as AppRole,
                           }))
                         }
                       >
-                        <option value="PARSER">PARSER</option>
-                        <option value="ADMIN">ADMIN</option>
+                        {ROLE_OPTIONS.map((role) => (
+                          <option key={role} value={role}>
+                            {role}
+                          </option>
+                        ))}
                       </select>
                     </div>
                   </div>
 
-                  <label className="flex items-start gap-3 rounded-lg border bg-muted/20 p-4">
-                    <input
-                      type="checkbox"
-                      className="mt-0.5 h-4 w-4"
-                      checked={editForm.is_active}
-                      disabled={editingUser.user_id === user.user_id}
-                      onChange={(event) =>
-                        setEditForm((current) => ({
-                          ...current,
-                          is_active: event.target.checked,
-                        }))
-                      }
-                    />
-                    <span>
-                      <span className="block font-medium">User aktif</span>
-                      <span className="mt-1 block text-xs text-muted-foreground">
-                        User INACTIVE tidak dapat login. Admin yang sedang login
-                        tidak dapat menonaktifkan akun sendiri.
-                      </span>
-                    </span>
-                  </label>
-
-                  <div className="flex flex-col-reverse gap-2 border-t pt-4 sm:flex-row sm:justify-end">
+                  <div className="flex flex-col-reverse gap-2 border-t pt-5 sm:flex-row sm:justify-end">
                     <Button
                       type="button"
                       variant="outline"
@@ -502,7 +596,7 @@ export default function UsersPage() {
                       Cancel
                     </Button>
                     <Button type="submit" disabled={savingEdit}>
-                      {savingEdit ? "Menyimpan..." : "Update User"}
+                      {savingEdit ? "Menyimpan..." : "Simpan Perubahan"}
                     </Button>
                   </div>
                 </form>
