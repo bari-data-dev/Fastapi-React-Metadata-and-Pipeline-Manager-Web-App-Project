@@ -9,6 +9,7 @@ from app.services.auth_service import get_user_by_id
 
 
 bearer_scheme = HTTPBearer(auto_error=False)
+USER_DIRECTORY_ROLES = {"ADMIN", "MANAGER", "PARSER-TEAM"}
 
 
 def get_current_user(
@@ -32,8 +33,23 @@ def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
     if not user.is_active:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User sudah tidak aktif")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User sudah tidak aktif",
+        )
     return user
+
+
+def require_roles(*allowed_roles: str):
+    def dependency(current_user: AppUser = Depends(get_current_user)) -> AppUser:
+        if current_user.role not in set(allowed_roles):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Role Anda tidak memiliki akses ke fitur ini",
+            )
+        return current_user
+
+    return dependency
 
 
 def require_admin(current_user: AppUser = Depends(get_current_user)) -> AppUser:
@@ -41,5 +57,16 @@ def require_admin(current_user: AppUser = Depends(get_current_user)) -> AppUser:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Akses hanya diperbolehkan untuk ADMIN",
+        )
+    return current_user
+
+
+def require_user_directory_viewer(
+    current_user: AppUser = Depends(get_current_user),
+) -> AppUser:
+    if current_user.role not in USER_DIRECTORY_ROLES:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User Management tidak tersedia untuk role Anda",
         )
     return current_user
