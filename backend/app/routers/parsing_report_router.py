@@ -18,6 +18,12 @@ def _start_of_day(value: date | None) -> datetime | None:
     return datetime.combine(value, time.min) if value is not None else None
 
 
+def _effective_user_id(current_user: AppUser, requested_user_id: int | None) -> int | None:
+    if current_user.role == "PARSER-INTERN":
+        return int(current_user.user_id)
+    return requested_user_id
+
+
 @router.get("/summary", response_model=ApiResponse[dict])
 def get_summary(
     date_from: date | None = None,
@@ -25,15 +31,22 @@ def get_summary(
     user_id: int | None = None,
     mysql_db: Session = Depends(get_mysql_pipeline_session),
     audit_db: Session = Depends(get_session),
-    _: AppUser = Depends(get_current_user),
+    current_user: AppUser = Depends(get_current_user),
 ):
+    scoped_user_id = _effective_user_id(current_user, user_id)
     data = parsing_report_service.get_summary(
         mysql_db=mysql_db,
         audit_db=audit_db,
         date_from=_start_of_day(date_from),
         date_to=_start_of_day(date_to),
-        user_id=user_id,
+        user_id=scoped_user_id,
     )
+    if current_user.role == "PARSER-INTERN":
+        data["member_options"] = [
+            option
+            for option in data.get("member_options", [])
+            if option.get("user_id") == current_user.user_id
+        ]
     return ApiResponse(success=True, data=data)
 
 
@@ -50,7 +63,7 @@ def get_effective_results(
     sort_dir: str = Query("desc", regex="^(asc|desc)$"),
     mysql_db: Session = Depends(get_mysql_pipeline_session),
     audit_db: Session = Depends(get_session),
-    _: AppUser = Depends(get_current_user),
+    current_user: AppUser = Depends(get_current_user),
 ):
     data = parsing_report_filter_service.get_effective_results(
         mysql_db=mysql_db,
@@ -58,7 +71,7 @@ def get_effective_results(
         page=page,
         page_size=page_size,
         odist_id=odist_id,
-        user_id=user_id,
+        user_id=_effective_user_id(current_user, user_id),
         status_filter=status_filter,
         revert_state=revert_state,
         search=search,
@@ -83,7 +96,7 @@ def get_activity_history(
     sort_dir: str = Query("desc", regex="^(asc|desc)$"),
     mysql_db: Session = Depends(get_mysql_pipeline_session),
     audit_db: Session = Depends(get_session),
-    _: AppUser = Depends(get_current_user),
+    current_user: AppUser = Depends(get_current_user),
 ):
     data = parsing_report_filter_service.get_activity_history(
         mysql_db=mysql_db,
@@ -93,7 +106,7 @@ def get_activity_history(
         date_from=_start_of_day(date_from),
         date_to=_start_of_day(date_to),
         odist_id=odist_id,
-        user_id=user_id,
+        user_id=_effective_user_id(current_user, user_id),
         change_type=change_type,
         revert_state=revert_state,
         search=search,
