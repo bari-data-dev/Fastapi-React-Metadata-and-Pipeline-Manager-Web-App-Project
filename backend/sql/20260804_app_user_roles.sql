@@ -1,0 +1,12 @@
+SET NOCOUNT ON;
+SET XACT_ABORT ON;
+
+BEGIN TRANSACTION;
+
+UPDATE [tools].[app_users]
+SET
+    [role] = N'PARSER-TEAM',
+    [updated_at] = SYSDATETIME()
+WHERE [role] = N'PARSER';
+
+COMMIT TRANSACTION;
