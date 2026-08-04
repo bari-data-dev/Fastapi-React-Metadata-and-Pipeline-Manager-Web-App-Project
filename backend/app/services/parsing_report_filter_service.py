@@ -1,10 +1,14 @@
+import json
 import math
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from sqlmodel import Session
 
 from app.services import parsing_report_service as base
+
+
+SortAccessor = Callable[[Dict[str, Any]], Any]
 
 
 def _matches_period(
@@ -44,6 +48,75 @@ def _effective_revert_state(
     return base._event_revert_state(latest_audit, baseline_values)
 
 
+def _normalize_sort_value(value: Any) -> tuple[int, Any]:
+    if isinstance(value, bool):
+        return (0, int(value))
+    if isinstance(value, (int, float)):
+        return (0, float(value))
+    if isinstance(value, datetime):
+        return (0, value.timestamp())
+    if isinstance(value, (list, dict)):
+        value = json.dumps(value, ensure_ascii=False, sort_keys=True, default=str)
+    return (1, base._normalize(value))
+
+
+def _sort_items(
+    items: List[Dict[str, Any]],
+    sort_by: Optional[str],
+    sort_dir: str,
+    accessors: Dict[str, SortAccessor],
+    default_sort: str,
+) -> List[Dict[str, Any]]:
+    safe_sort = sort_by if sort_by in accessors else default_sort
+    accessor = accessors[safe_sort]
+    reverse = str(sort_dir).lower() == "desc"
+
+    populated: List[Dict[str, Any]] = []
+    empty: List[Dict[str, Any]] = []
+    for item in items:
+        value = accessor(item)
+        if value is None or value == "":
+            empty.append(item)
+        else:
+            populated.append(item)
+
+    populated.sort(
+        key=lambda item: _normalize_sort_value(accessor(item)),
+        reverse=reverse,
+    )
+    return populated + empty
+
+
+EFFECTIVE_SORT_ACCESSORS: Dict[str, SortAccessor] = {
+    "odist_id": lambda item: item.get("odist_id"),
+    "member_name": lambda item: item.get("member_name"),
+    "status": lambda item: item.get("status"),
+    "revert_state": lambda item: item.get("revert_state"),
+    "original_ogal_id": lambda item: item.get("original_ogal_id"),
+    "current_ogal_id": lambda item: item.get("current_ogal_id"),
+    "owned_revision_fields": lambda item: item.get("owned_revision_fields"),
+    "cust_name": lambda item: item.get("cust_name"),
+    "city": lambda item: item.get("city"),
+    "province": lambda item: item.get("province"),
+    "last_edited_at": lambda item: item.get("last_edited_at"),
+    "total_actions": lambda item: item.get("total_actions"),
+    "tracking": lambda item: "UNTRACKED" if item.get("is_untracked") else "TRACKED",
+}
+
+HISTORY_SORT_ACCESSORS: Dict[str, SortAccessor] = {
+    "changed_at": lambda item: item.get("changed_at"),
+    "odist_id": lambda item: item.get("odist_id"),
+    "member_name": lambda item: item.get("member_name"),
+    "change_type": lambda item: item.get("change_type"),
+    "revert_state": lambda item: item.get("revert_state"),
+    "changed_fields": lambda item: item.get("changed_fields"),
+    "before_after": lambda item: {
+        "old_values": item.get("old_values"),
+        "new_values": item.get("new_values"),
+    },
+}
+
+
 def get_effective_results(
     mysql_db: Session,
     audit_db: Session,
@@ -54,6 +127,8 @@ def get_effective_results(
     status_filter: Optional[str] = None,
     revert_state: Optional[str] = None,
     search: Optional[str] = None,
+    sort_by: Optional[str] = None,
+    sort_dir: str = "desc",
 ) -> Dict[str, Any]:
     details, audits, baselines = base._build_effective_details(mysql_db, audit_db)
     normalized_search = base._normalize(search) if search else ""
@@ -94,6 +169,14 @@ def get_effective_results(
                 continue
         filtered.append(detail)
 
+    filtered = _sort_items(
+        items=filtered,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
+        accessors=EFFECTIVE_SORT_ACCESSORS,
+        default_sort="last_edited_at",
+    )
+
     page = max(page, 1)
     page_size = min(max(page_size, 1), 200)
     total = len(filtered)
@@ -119,6 +202,8 @@ def get_activity_history(
     change_type: Optional[str] = None,
     revert_state: Optional[str] = None,
     search: Optional[str] = None,
+    sort_by: Optional[str] = None,
+    sort_dir: str = "desc",
 ) -> Dict[str, Any]:
     base._ensure_schema(audit_db)
     all_audits = base._load_audits(audit_db)
@@ -126,7 +211,7 @@ def get_activity_history(
     normalized_search = base._normalize(search) if search else ""
 
     items: List[Dict[str, Any]] = []
-    for audit in reversed(all_audits):
+    for audit in all_audits:
         if not _matches_period(audit["changed_at"], date_from, date_to):
             continue
         if odist_id is not None and int(audit["odist_id"]) != int(odist_id):
@@ -175,6 +260,14 @@ def get_activity_history(
                 "changed_at": base._iso(audit["changed_at"]),
             }
         )
+
+    items = _sort_items(
+        items=items,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
+        accessors=HISTORY_SORT_ACCESSORS,
+        default_sort="changed_at",
+    )
 
     page = max(page, 1)
     page_size = min(max(page_size, 1), 200)
