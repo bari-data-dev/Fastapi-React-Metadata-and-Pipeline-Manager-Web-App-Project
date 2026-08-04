@@ -4,7 +4,11 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session
 
-from app.core.auth_dependencies import get_current_user, require_admin
+from app.core.auth_dependencies import (
+    get_current_user,
+    require_admin,
+    require_user_directory_viewer,
+)
 from app.core.config import settings
 from app.core.security import create_access_token
 from app.db.database import get_session
@@ -74,7 +78,7 @@ def validate_orchestrator_access(
 @router.get("/users", response_model=ApiResponse[List[AppUserRead]])
 def list_users(
     db: Session = Depends(get_session),
-    _: AppUser = Depends(require_admin),
+    _: AppUser = Depends(require_user_directory_viewer),
 ):
     return ApiResponse(
         success=True,
@@ -101,13 +105,13 @@ def update_user(
     user_id: int,
     payload: AppUserUpdate,
     db: Session = Depends(get_session),
-    current_admin: AppUser = Depends(require_admin),
+    current_user: AppUser = Depends(require_user_directory_viewer),
 ):
     user = auth_service.update_user(
-        db,
-        user_id,
-        payload,
-        actor_user_id=current_admin.user_id,
+        db=db,
+        user_id=user_id,
+        payload=payload,
+        actor=current_user,
     )
     return ApiResponse(
         success=True,
