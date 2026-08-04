@@ -13,9 +13,9 @@ function findFieldListButton(): HTMLButtonElement | null {
 }
 
 function findFieldListPanel(): HTMLElement | null {
-  const title = Array.from(document.querySelectorAll<HTMLElement>("h1, h2, h3, h4")).find(
-    (element) => normalizedText(element) === "PILIH KOLOM"
-  );
+  const title = Array.from(
+    document.querySelectorAll<HTMLElement>("h1, h2, h3, h4")
+  ).find((element) => normalizedText(element) === "PILIH KOLOM");
   if (!title) return null;
 
   let current: HTMLElement | null = title.parentElement;
@@ -28,7 +28,18 @@ function findFieldListPanel(): HTMLElement | null {
   return null;
 }
 
-function findScrollableTableContainer(start: EventTarget | null): HTMLElement | null {
+function isMainOdistTableContainer(element: HTMLElement) {
+  const className = element.className;
+  return (
+    typeof className === "string" &&
+    (className.includes("max-h-[62dvh]") ||
+      className.includes("sm:max-h-[68vh]"))
+  );
+}
+
+function findScrollableTableContainer(
+  start: EventTarget | null
+): HTMLElement | null {
   let current = start instanceof HTMLElement ? start : null;
 
   while (current && current !== document.body) {
@@ -40,7 +51,9 @@ function findScrollableTableContainer(start: EventTarget | null): HTMLElement | 
       (child) => child.tagName === "TABLE"
     );
 
-    if (scrollableY && ownsTable) return current;
+    if (scrollableY && ownsTable && isMainOdistTableContainer(current)) {
+      return current;
+    }
     current = current.parentElement;
   }
 
