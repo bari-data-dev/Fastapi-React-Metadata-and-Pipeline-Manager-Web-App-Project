@@ -14,6 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { useAuth } from "@/contexts/AuthContext";
 import dataAnalyticsBg from "@/assets/data-analytics-bg.png";
 
 type HomeFeature = {
@@ -25,6 +26,12 @@ type HomeFeature = {
 };
 
 const Index = () => {
+  const { user } = useAuth();
+  const canViewUsers =
+    user?.role === "ADMIN" ||
+    user?.role === "MANAGER" ||
+    user?.role === "PARSER-TEAM";
+
   const features: HomeFeature[] = [
     {
       icon: TableProperties,
@@ -34,17 +41,29 @@ const Index = () => {
       actionLabel: "Buka ODIST Parsing",
       actionTo: "/metadata/odists-parsing",
     },
-    {
-      icon: Users,
-      title: "User Management",
-      description:
-        "Kelola akun ADMIN dan PARSER yang memiliki akses ke aplikasi.",
-    },
+    ...(canViewUsers
+      ? [
+          {
+            icon: Users,
+            title: "User Management",
+            description:
+              user?.role === "ADMIN"
+                ? "Tambah user, edit detail anggota, dan atur status akses."
+                : user?.role === "MANAGER"
+                  ? "Lihat daftar anggota dan atur status aktif atau nonaktif."
+                  : "Lihat daftar anggota dan role yang tersedia.",
+            actionLabel: "Buka User Management",
+            actionTo: "/admin/users",
+          } satisfies HomeFeature,
+        ]
+      : []),
     {
       icon: ShieldCheck,
       title: "Audit Perubahan",
       description:
-        "Setiap perubahan ODIST dicatat bersama user, field, nilai lama, nilai baru, dan waktu perubahan.",
+        user?.role === "PARSER-INTERN"
+          ? "Lihat effective result dan activity history milik akun Anda sendiri."
+          : "Setiap perubahan ODIST dicatat bersama user, field, nilai lama, nilai baru, dan waktu perubahan.",
       actionLabel: "Buka Parsing Report",
       actionTo: "/reports/parsing",
     },
@@ -91,7 +110,7 @@ const Index = () => {
         <div className="mb-8 text-center">
           <h2 className="text-2xl font-bold">Fitur Aktif</h2>
           <p className="mt-2 text-muted-foreground">
-            Buka proses parsing atau report langsung dari kartu terkait.
+            Menu ditampilkan sesuai hak akses akun yang sedang digunakan.
           </p>
         </div>
 
