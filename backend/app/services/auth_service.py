@@ -18,7 +18,10 @@ def get_user_by_id(db: Session, user_id: int) -> AppUser:
     statement = select(AppUser).where(AppUser.user_id == user_id)
     user = db.exec(statement).one_or_none()
     if user is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User tidak ditemukan")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User tidak ditemukan",
+        )
     return user
 
 
@@ -36,7 +39,10 @@ def authenticate_user(db: Session, username: str, password: str) -> AppUser:
             headers={"WWW-Authenticate": "Bearer"},
         )
     if not user.is_active:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User sudah tidak aktif")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User sudah tidak aktif",
+        )
     user.last_login_at = datetime.now()
     db.add(user)
     db.commit()
@@ -46,7 +52,10 @@ def authenticate_user(db: Session, username: str, password: str) -> AppUser:
 
 def create_user(db: Session, payload: AppUserCreate) -> AppUser:
     if get_user_by_username(db, payload.username) is not None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username sudah digunakan")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Username sudah digunakan",
+        )
     user = AppUser(
         username=payload.username,
         password_hash=hash_password(payload.password),
@@ -61,7 +70,22 @@ def create_user(db: Session, payload: AppUserCreate) -> AppUser:
     return user
 
 
-def update_user(db: Session, user_id: int, payload: AppUserUpdate) -> AppUser:
+def _active_admin_count(db: Session) -> int:
+    active_admins = db.exec(
+        select(AppUser).where(
+            AppUser.role == "ADMIN",
+            AppUser.is_active == True,  # noqa: E712
+        )
+    ).all()
+    return len(active_admins)
+
+
+def update_user(
+    db: Session,
+    user_id: int,
+    payload: AppUserUpdate,
+    actor_user_id: int | None = None,
+) -> AppUser:
     user = get_user_by_id(db, user_id)
     update_data = payload.dict(exclude_unset=True)
     if not update_data:
@@ -69,11 +93,50 @@ def update_user(db: Session, user_id: int, payload: AppUserUpdate) -> AppUser:
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Tidak ada field yang akan diubah",
         )
+
+    next_role = update_data.get("role", user.role)
+    next_is_active = update_data.get("is_active", user.is_active)
+
+    if actor_user_id == user_id:
+        if next_role != "ADMIN":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Admin yang sedang login tidak dapat mengubah role sendiri menjadi PARSER",
+            )
+        if not next_is_active:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Admin yang sedang login tidak dapat menonaktifkan akun sendiri",
+            )
+
+    removes_active_admin = (
+        user.role == "ADMIN"
+        and user.is_active
+        and (next_role != "ADMIN" or not next_is_active)
+    )
+    if removes_active_admin and _active_admin_count(db) <= 1:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Minimal satu akun ADMIN aktif harus tetap tersedia",
+        )
+
+    username = update_data.pop("username", None)
+    if username is not None and username != user.username:
+        existing = get_user_by_username(db, username)
+        if existing is not None and existing.user_id != user.user_id:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Username sudah digunakan",
+            )
+        user.username = username
+
     password = update_data.pop("password", None)
     if password is not None:
         user.password_hash = hash_password(password)
+
     for field_name, value in update_data.items():
         setattr(user, field_name, value)
+
     user.updated_at = datetime.now()
     db.add(user)
     db.commit()
