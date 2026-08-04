@@ -270,14 +270,14 @@ export const parsingReportApi = {
     status?: string;
     revertState?: string;
     search?: string;
-    sortBy: string;
-    sortDir: "asc" | "desc";
+    sortBy?: string;
+    sortDir?: "asc" | "desc";
   }) => {
     const query = new URLSearchParams({
       page: String(params.page),
       page_size: String(params.pageSize),
-      sort_by: params.sortBy,
-      sort_dir: params.sortDir,
+      sort_by: params.sortBy || "last_edited_at",
+      sort_dir: params.sortDir || "desc",
     });
     appendOptional(query, "odist_id", params.odistId);
     appendOptional(query, "user_id", params.userId);
@@ -298,14 +298,14 @@ export const parsingReportApi = {
     changeType?: string;
     revertState?: string;
     search?: string;
-    sortBy: string;
-    sortDir: "asc" | "desc";
+    sortBy?: string;
+    sortDir?: "asc" | "desc";
   }) => {
     const query = new URLSearchParams({
       page: String(params.page),
       page_size: String(params.pageSize),
-      sort_by: params.sortBy,
-      sort_dir: params.sortDir,
+      sort_by: params.sortBy || "changed_at",
+      sort_dir: params.sortDir || "desc",
     });
     appendOptional(query, "date_from", params.dateFrom);
     appendOptional(query, "date_to", params.dateTo);
