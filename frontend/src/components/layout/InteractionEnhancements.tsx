@@ -28,6 +28,31 @@ function findFieldListPanel(): HTMLElement | null {
   return null;
 }
 
+function isValueFilterModalOpen() {
+  return Array.from(
+    document.querySelectorAll<HTMLElement>("h1, h2, h3, h4")
+  ).some((element) => normalizedText(element).startsWith("FILTER BY VALUE:"));
+}
+
+function findOdistBatchActionButton(): HTMLButtonElement | null {
+  const buttons = Array.from(
+    document.querySelectorAll<HTMLButtonElement>("button")
+  );
+
+  const confirmButton = buttons.find((button) => {
+    const text = normalizedText(button);
+    return !button.disabled && (/^Save \d+ Rows$/.test(text) || text === "Saving...");
+  });
+  if (confirmButton) return confirmButton;
+
+  return (
+    buttons.find((button) => {
+      const text = normalizedText(button);
+      return !button.disabled && text.startsWith("Save All");
+    }) || null
+  );
+}
+
 function isMainOdistTableContainer(element: HTMLElement) {
   const className = element.className;
   return (
@@ -75,6 +100,20 @@ export function InteractionEnhancements() {
       }
     };
 
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const isSaveShortcut =
+        (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s";
+      if (!isSaveShortcut) return;
+      if (window.location.pathname !== "/metadata/odists-parsing") return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+
+      if (isValueFilterModalOpen()) return;
+      findOdistBatchActionButton()?.click();
+    };
+
     const handleWheel = (event: WheelEvent) => {
       if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
 
@@ -110,12 +149,11 @@ export function InteractionEnhancements() {
         return;
       }
 
-      // Selama tabel masih dapat bergerak, wheel hanya menggerakkan tabel.
-      // Ini mencegah halaman ikut tersentak sebelum batas tabel tercapai.
       event.stopPropagation();
     };
 
     document.addEventListener("pointerdown", handlePointerDown, true);
+    document.addEventListener("keydown", handleKeyDown, true);
     document.addEventListener("wheel", handleWheel, {
       capture: true,
       passive: false,
@@ -123,6 +161,7 @@ export function InteractionEnhancements() {
 
     return () => {
       document.removeEventListener("pointerdown", handlePointerDown, true);
+      document.removeEventListener("keydown", handleKeyDown, true);
       document.removeEventListener("wheel", handleWheel, true);
     };
   }, []);
