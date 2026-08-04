@@ -6,11 +6,17 @@ export type ApiResponse<T> = {
   message?: string | null;
 };
 
+export type AppRole =
+  | "ADMIN"
+  | "PARSER-TEAM"
+  | "PARSER-INTERN"
+  | "MANAGER";
+
 export type AppUser = {
   user_id: number;
   username: string;
   full_name: string;
-  role: "ADMIN" | "PARSER";
+  role: AppRole;
   is_active: boolean;
   last_login_at?: string | null;
   created_at?: string | null;
@@ -188,7 +194,7 @@ export const authApi = {
     username: string;
     password: string;
     full_name: string;
-    role: "ADMIN" | "PARSER";
+    role: AppRole;
     is_active: boolean;
   }) =>
     appFetch<AppUser>("/auth/users", {
