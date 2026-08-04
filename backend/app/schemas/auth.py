@@ -4,7 +4,7 @@ from typing import Literal, Optional
 from pydantic import BaseModel, Field, validator
 
 
-UserRole = Literal["ADMIN", "PARSER"]
+UserRole = Literal["ADMIN", "PARSER-TEAM", "PARSER-INTERN", "MANAGER"]
 
 
 class LoginRequest(BaseModel):
@@ -27,7 +27,7 @@ class AppUserCreate(BaseModel):
     username: str = Field(..., min_length=3, max_length=100)
     password: str = Field(..., min_length=8, max_length=128)
     full_name: str = Field(..., min_length=1, max_length=191)
-    role: UserRole = "PARSER"
+    role: UserRole = "PARSER-TEAM"
     is_active: bool = True
 
     @validator("username")
@@ -53,18 +53,18 @@ class AppUserUpdate(BaseModel):
     password: Optional[str] = Field(None, min_length=8, max_length=128)
 
     @validator("username")
-    def normalize_update_username(cls, value: Optional[str]) -> Optional[str]:
+    def normalize_username(cls, value: Optional[str]) -> Optional[str]:
         if value is None:
-            return None
+            return value
         normalized = value.strip().lower()
         if not normalized:
             raise ValueError("Username wajib diisi")
         return normalized
 
     @validator("full_name")
-    def normalize_update_full_name(cls, value: Optional[str]) -> Optional[str]:
+    def normalize_full_name(cls, value: Optional[str]) -> Optional[str]:
         if value is None:
-            return None
+            return value
         normalized = value.strip()
         if not normalized:
             raise ValueError("Nama lengkap wajib diisi")
