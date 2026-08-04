@@ -46,6 +46,8 @@ def get_effective_results(
     status_filter: str | None = Query(default=None, alias="status"),
     revert_state: str | None = None,
     search: str | None = None,
+    sort_by: str = "last_edited_at",
+    sort_dir: str = Query("desc", regex="^(asc|desc)$"),
     mysql_db: Session = Depends(get_mysql_pipeline_session),
     audit_db: Session = Depends(get_session),
     _: AppUser = Depends(get_current_user),
@@ -60,6 +62,8 @@ def get_effective_results(
         status_filter=status_filter,
         revert_state=revert_state,
         search=search,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
     )
     return ApiResponse(success=True, data=data)
 
@@ -75,6 +79,8 @@ def get_activity_history(
     change_type: str | None = None,
     revert_state: str | None = None,
     search: str | None = None,
+    sort_by: str = "changed_at",
+    sort_dir: str = Query("desc", regex="^(asc|desc)$"),
     mysql_db: Session = Depends(get_mysql_pipeline_session),
     audit_db: Session = Depends(get_session),
     _: AppUser = Depends(get_current_user),
@@ -91,5 +97,7 @@ def get_activity_history(
         change_type=change_type,
         revert_state=revert_state,
         search=search,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
     )
     return ApiResponse(success=True, data=data)
