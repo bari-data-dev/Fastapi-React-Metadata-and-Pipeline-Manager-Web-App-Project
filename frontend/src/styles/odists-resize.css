@@ -18,3 +18,13 @@
   background: hsl(var(--primary));
   box-shadow: none;
 }
+
+/*
+ * Tabel ODIST memiliki scroll vertikal sendiri. Saat posisi tabel sudah berada
+ * di batas atas atau bawah, wheel/touchpad harus diteruskan ke halaman, bukan
+ * ditahan di dalam tabel.
+ */
+.overscroll-contain {
+  overscroll-behavior-x: contain !important;
+  overscroll-behavior-y: auto !important;
+}
