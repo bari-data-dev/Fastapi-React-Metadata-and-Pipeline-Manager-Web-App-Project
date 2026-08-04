@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { authApi, AppUser } from "@/lib/appApi";
+import { AppUser, authApi } from "@/lib/appApi";
 
 
 type AuthContextValue = {
@@ -7,6 +7,7 @@ type AuthContextValue = {
   loading: boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
+  updateCurrentUser: (nextUser: AppUser) => void;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -51,7 +52,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   };
 
-  const value = useMemo(() => ({ user, loading, login, logout }), [user, loading]);
+  const updateCurrentUser = (nextUser: AppUser) => {
+    localStorage.setItem("metadata_app_user", JSON.stringify(nextUser));
+    setUser(nextUser);
+  };
+
+  const value = useMemo(
+    () => ({ user, loading, login, logout, updateCurrentUser }),
+    [user, loading]
+  );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
