@@ -7,13 +7,14 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
+import { InteractionEnhancements } from "@/components/layout/InteractionEnhancements";
 import { PageTransition } from "@/components/layout/PageTransition";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AuthProvider } from "@/contexts/AuthContext";
 import LoginPage from "./pages/LoginPage";
 import Index from "./pages/Index";
 import OdistsParsingPage from "./pages/metadata/OdistsParsingPage";
-import ParsingReportPage from "./pages/reports/ParsingReportPageV2";
+import ParsingReportPage from "./pages/reports/ParsingReportPageV3";
 import UsersPage from "./pages/admin/UsersPage";
 
 const queryClient = new QueryClient();
@@ -78,6 +79,7 @@ export default function App() {
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <InteractionEnhancements />
         <BrowserRouter>
           <AuthProvider>
             <Routes>
