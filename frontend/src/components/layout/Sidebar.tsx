@@ -31,8 +31,11 @@ export function AppSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Mobile memakai drawer penuh. State collapse hanya berlaku di desktop.
   const collapsed = !isMobile && state === "collapsed";
+  const canViewUsers =
+    user?.role === "ADMIN" ||
+    user?.role === "MANAGER" ||
+    user?.role === "PARSER-TEAM";
 
   const items = [
     {
@@ -40,7 +43,7 @@ export function AppSidebar() {
       url: "/metadata/odists-parsing",
       icon: TableProperties,
     },
-    ...(user?.role === "ADMIN"
+    ...(canViewUsers
       ? [{ title: "User Management", url: "/admin/users", icon: Users }]
       : []),
   ];
