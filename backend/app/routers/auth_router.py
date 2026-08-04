@@ -101,9 +101,14 @@ def update_user(
     user_id: int,
     payload: AppUserUpdate,
     db: Session = Depends(get_session),
-    _: AppUser = Depends(require_admin),
+    current_admin: AppUser = Depends(require_admin),
 ):
-    user = auth_service.update_user(db, user_id, payload)
+    user = auth_service.update_user(
+        db,
+        user_id,
+        payload,
+        actor_user_id=current_admin.user_id,
+    )
     return ApiResponse(
         success=True,
         data=AppUserRead.from_orm(user),
