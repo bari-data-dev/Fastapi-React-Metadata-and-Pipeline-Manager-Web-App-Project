@@ -89,6 +89,7 @@ export type ParsingEffectiveItem = {
   username: string;
   status: string;
   global_status: string;
+  revert_state: string;
   original_ogal_id: unknown;
   current_ogal_id: unknown;
   active_revision_fields: string[];
@@ -264,16 +265,20 @@ export const parsingReportApi = {
   effective: (params: {
     page: number;
     pageSize: number;
+    odistId?: number | null;
     userId?: number | null;
     status?: string;
+    revertState?: string;
     search?: string;
   }) => {
     const query = new URLSearchParams({
       page: String(params.page),
       page_size: String(params.pageSize),
     });
+    appendOptional(query, "odist_id", params.odistId);
     appendOptional(query, "user_id", params.userId);
     appendOptional(query, "status", params.status);
+    appendOptional(query, "revert_state", params.revertState);
     appendOptional(query, "search", params.search);
     return appFetch<PagedResult<ParsingEffectiveItem>>(
       `/parsing-report/effective?${query.toString()}`
@@ -284,6 +289,7 @@ export const parsingReportApi = {
     pageSize: number;
     dateFrom?: string;
     dateTo?: string;
+    odistId?: number | null;
     userId?: number | null;
     changeType?: string;
     revertState?: string;
@@ -295,6 +301,7 @@ export const parsingReportApi = {
     });
     appendOptional(query, "date_from", params.dateFrom);
     appendOptional(query, "date_to", params.dateTo);
+    appendOptional(query, "odist_id", params.odistId);
     appendOptional(query, "user_id", params.userId);
     appendOptional(query, "change_type", params.changeType);
     appendOptional(query, "revert_state", params.revertState);
