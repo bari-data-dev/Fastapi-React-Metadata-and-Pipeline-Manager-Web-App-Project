@@ -75,6 +75,79 @@ function findOdistBatchActionButton(): HTMLButtonElement | null {
   );
 }
 
+function setControlValue(
+  control: HTMLInputElement | HTMLSelectElement,
+  value: string
+) {
+  const prototype =
+    control instanceof HTMLInputElement
+      ? HTMLInputElement.prototype
+      : HTMLSelectElement.prototype;
+  const setter = Object.getOwnPropertyDescriptor(prototype, "value")?.set;
+
+  if (setter) setter.call(control, value);
+  else control.value = value;
+
+  control.dispatchEvent(new Event("input", { bubbles: true }));
+  control.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+function findActiveReportRoot(): HTMLElement | null {
+  const title = Array.from(document.querySelectorAll<HTMLElement>("h1")).find(
+    (element) =>
+      isVisible(element) && normalizedText(element) === "PARSING REPORT"
+  );
+  if (!title) return null;
+
+  let current: HTMLElement | null = title.parentElement;
+  while (current && current !== document.body) {
+    const hasDateFilter = Boolean(current.querySelector('input[type="date"]'));
+    const hasResetButton = Array.from(
+      current.querySelectorAll<HTMLButtonElement>("button")
+    ).some((button) => isVisible(button) && normalizedText(button) === "Reset");
+
+    if (hasDateFilter && hasResetButton) return current;
+    current = current.parentElement;
+  }
+
+  return null;
+}
+
+function resetReportFilters() {
+  const root = findActiveReportRoot();
+  if (!root) return false;
+
+  const resetButton = Array.from(
+    root.querySelectorAll<HTMLButtonElement>("button")
+  ).find((button) => isVisible(button) && normalizedText(button) === "Reset");
+  resetButton?.click();
+
+  const now = new Date();
+  const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+  const formatDate = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const dateInputs = Array.from(
+    root.querySelectorAll<HTMLInputElement>('input[type="date"]')
+  ).filter((input) => isVisible(input));
+  if (dateInputs[0]) setControlValue(dateInputs[0], formatDate(firstDay));
+  if (dateInputs[1]) setControlValue(dateInputs[1], formatDate(now));
+
+  const memberLabel = Array.from(root.querySelectorAll<HTMLLabelElement>("label")).find(
+    (label) =>
+      isVisible(label) &&
+      normalizedText(label.querySelector("span")) === "ANGGOTA"
+  );
+  const memberSelect = memberLabel?.querySelector<HTMLSelectElement>("select");
+  if (memberSelect) setControlValue(memberSelect, "");
+
+  return true;
+}
+
 function resetFiltersForActivePage() {
   const pathname = window.location.pathname;
 
@@ -84,8 +157,7 @@ function resetFiltersForActivePage() {
   }
 
   if (pathname === "/reports/parsing") {
-    findVisibleButtonByText("Reset")?.click();
-    return true;
+    return resetReportFilters();
   }
 
   return false;
