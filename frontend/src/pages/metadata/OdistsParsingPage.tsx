@@ -27,20 +27,12 @@ import { cn } from "@/lib/utils";
 const DEFAULT_COLUMNS = [
   "id",
   "ogal_id",
-  "dist_code",
-  "cust_code",
   "cust_name",
   "address",
-  "type_outlet",
   "city",
   "province",
   "kecamatan",
-  "kota",
-  "provinsi",
-  "status_upd",
-  "updated_by",
-  "parsed_at",
-  "dwh_refreshed_at",
+  "kelurahan",
 ];
 
 const DATE_FIELDS = new Set([
