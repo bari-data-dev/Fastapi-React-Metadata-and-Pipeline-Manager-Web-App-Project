@@ -12,6 +12,7 @@ from app.types import ApiResponse
 
 
 router = APIRouter(prefix="/parsing-report", tags=["Parsing Report"])
+REPORT_PAGE_SIZE = 10
 
 
 def _start_of_day(value: date | None) -> datetime | None:
@@ -53,7 +54,6 @@ def get_summary(
 @router.get("/effective", response_model=ApiResponse[dict])
 def get_effective_results(
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
     odist_id: int | None = Query(default=None, ge=1),
     user_id: int | None = None,
     status_filter: str | None = Query(default=None, alias="status"),
@@ -69,7 +69,7 @@ def get_effective_results(
         mysql_db=mysql_db,
         audit_db=audit_db,
         page=page,
-        page_size=page_size,
+        page_size=REPORT_PAGE_SIZE,
         odist_id=odist_id,
         user_id=_effective_user_id(current_user, user_id),
         status_filter=status_filter,
@@ -84,7 +84,6 @@ def get_effective_results(
 @router.get("/history", response_model=ApiResponse[dict])
 def get_activity_history(
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
     date_from: date | None = None,
     date_to: date | None = None,
     odist_id: int | None = Query(default=None, ge=1),
@@ -102,7 +101,7 @@ def get_activity_history(
         mysql_db=mysql_db,
         audit_db=audit_db,
         page=page,
-        page_size=page_size,
+        page_size=REPORT_PAGE_SIZE,
         date_from=_start_of_day(date_from),
         date_to=_start_of_day(date_to),
         odist_id=odist_id,
