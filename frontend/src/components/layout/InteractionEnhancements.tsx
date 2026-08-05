@@ -1,5 +1,10 @@
 import { useEffect } from "react";
 
+const ODIST_OLD_HELP_TEXT =
+  "Geser batas kanan header untuk resize kolom. Double-click untuk reset.";
+const ODIST_NEW_HELP_TEXT =
+  "CTRL + R untuk reset filter, CTRL + S untuk save perubahan";
+
 function normalizedText(element: Element | null) {
   return (element?.textContent || "").replace(/\s+/g, " ").trim();
 }
@@ -163,6 +168,18 @@ function resetFiltersForActivePage() {
   return false;
 }
 
+function replaceOdistHelpText() {
+  if (window.location.pathname !== "/metadata/odists-parsing") return;
+
+  Array.from(document.querySelectorAll<HTMLElement>("span")).forEach(
+    (element) => {
+      if (normalizedText(element) === ODIST_OLD_HELP_TEXT) {
+        element.textContent = ODIST_NEW_HELP_TEXT;
+      }
+    }
+  );
+}
+
 function isMainOdistTableContainer(element: HTMLElement) {
   const className = element.className;
   return (
@@ -272,6 +289,14 @@ export function InteractionEnhancements() {
       event.stopPropagation();
     };
 
+    replaceOdistHelpText();
+    const textObserver = new MutationObserver(replaceOdistHelpText);
+    textObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+
     document.addEventListener("pointerdown", handlePointerDown, true);
     document.addEventListener("keydown", handleKeyDown, true);
     document.addEventListener("wheel", handleWheel, {
@@ -280,6 +305,7 @@ export function InteractionEnhancements() {
     });
 
     return () => {
+      textObserver.disconnect();
       document.removeEventListener("pointerdown", handlePointerDown, true);
       document.removeEventListener("keydown", handleKeyDown, true);
       document.removeEventListener("wheel", handleWheel, true);
