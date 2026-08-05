@@ -169,6 +169,48 @@ function createButton(
   return button;
 }
 
+function getWindowStart(
+  root: HTMLElement,
+  state: PaginationState,
+  windowSize: number
+) {
+  const maxStart = Math.max(1, state.totalPages - windowSize + 1);
+  const storedStart = Number(root.dataset.paginationWindowStart || "1");
+  const previousPage = Number(root.dataset.paginationWindowPage || "0");
+
+  let startPage = Number.isFinite(storedStart) ? storedStart : 1;
+  startPage = Math.min(Math.max(1, startPage), maxStart);
+
+  if (previousPage !== state.currentPage) {
+    const endPage = Math.min(
+      state.totalPages,
+      startPage + windowSize - 1
+    );
+
+    if (state.currentPage > endPage) {
+      startPage = Math.min(
+        state.currentPage - windowSize + 1,
+        maxStart
+      );
+    } else if (state.currentPage < startPage) {
+      startPage = Math.max(1, state.currentPage);
+    } else if (
+      state.currentPage === endPage &&
+      state.currentPage < state.totalPages
+    ) {
+      startPage = Math.min(startPage + 1, maxStart);
+    } else if (state.currentPage === startPage && state.currentPage > 1) {
+      startPage = Math.max(1, startPage - 1);
+    }
+
+    root.dataset.paginationWindowPage = String(state.currentPage);
+  }
+
+  startPage = Math.min(Math.max(1, startPage), maxStart);
+  root.dataset.paginationWindowStart = String(startPage);
+  return startPage;
+}
+
 function enhancePagination(root: HTMLElement) {
   const state = findPaginationState(root);
   if (!state) return;
@@ -189,8 +231,7 @@ function enhancePagination(root: HTMLElement) {
   }
 
   const windowSize = Math.min(PAGE_WINDOW_SIZE, state.totalPages);
-  const maxStart = Math.max(1, state.totalPages - windowSize + 1);
-  const startPage = Math.min(state.currentPage, maxStart);
+  const startPage = getWindowStart(root, state, windowSize);
   const endPage = Math.min(state.totalPages, startPage + windowSize - 1);
   const signature = `${state.currentPage}:${state.totalPages}:${startPage}:${endPage}`;
   if (pagination.dataset.signature === signature) return;
