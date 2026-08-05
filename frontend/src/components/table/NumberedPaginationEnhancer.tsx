@@ -16,6 +16,19 @@ type NumberedPaginationEnhancerProps = {
   enhanceReportScroll?: boolean;
 };
 
+type ScrollableElementSnapshot = {
+  element: HTMLElement;
+  scrollTop: number;
+  scrollLeft: number;
+  previousMinHeight: string;
+};
+
+type ScrollSnapshot = {
+  windowX: number;
+  windowY: number;
+  elements: ScrollableElementSnapshot[];
+};
+
 function findPaginationState(root: HTMLElement): PaginationState | null {
   const pageText = Array.from(root.querySelectorAll<HTMLElement>("span")).find(
     (element) => /^Page\s+\d+\s*\/\s*\d+$/.test(element.textContent?.trim() || "")
@@ -122,9 +135,91 @@ function waitForPageChange(
   });
 }
 
+function isTableScrollContainer(element: HTMLElement) {
+  const ownsTable = Array.from(element.children).some(
+    (child) => child.tagName === "TABLE"
+  );
+  if (!ownsTable) return false;
+
+  const style = window.getComputedStyle(element);
+  const scrollableX =
+    style.overflowX === "auto" || style.overflowX === "scroll";
+  const scrollableY =
+    style.overflowY === "auto" || style.overflowY === "scroll";
+
+  return scrollableX || scrollableY;
+}
+
+function captureScrollSnapshot(root: HTMLElement): ScrollSnapshot {
+  const elements = Array.from(root.querySelectorAll<HTMLElement>("div"))
+    .filter(isTableScrollContainer)
+    .map((element) => {
+      const snapshot: ScrollableElementSnapshot = {
+        element,
+        scrollTop: element.scrollTop,
+        scrollLeft: element.scrollLeft,
+        previousMinHeight: element.style.minHeight,
+      };
+
+      const currentHeight = element.getBoundingClientRect().height;
+      if (currentHeight > 0) {
+        element.style.minHeight = `${currentHeight}px`;
+      }
+
+      return snapshot;
+    });
+
+  return {
+    windowX: window.scrollX,
+    windowY: window.scrollY,
+    elements,
+  };
+}
+
+function restoreScrollPosition(snapshot: ScrollSnapshot) {
+  window.scrollTo({
+    left: snapshot.windowX,
+    top: snapshot.windowY,
+    behavior: "auto",
+  });
+
+  snapshot.elements.forEach(({ element, scrollTop, scrollLeft }) => {
+    if (!document.contains(element)) return;
+    element.scrollTop = scrollTop;
+    element.scrollLeft = scrollLeft;
+  });
+}
+
+function releaseFrozenTableHeights(snapshot: ScrollSnapshot) {
+  snapshot.elements.forEach(({ element, previousMinHeight }) => {
+    if (!document.contains(element)) return;
+    element.style.minHeight = previousMinHeight;
+  });
+}
+
+function nextAnimationFrame() {
+  return new Promise<void>((resolve) => {
+    window.requestAnimationFrame(() => resolve());
+  });
+}
+
+async function settleScrollPosition(snapshot: ScrollSnapshot) {
+  await nextAnimationFrame();
+  restoreScrollPosition(snapshot);
+
+  await nextAnimationFrame();
+  restoreScrollPosition(snapshot);
+  releaseFrozenTableHeights(snapshot);
+
+  await nextAnimationFrame();
+  restoreScrollPosition(snapshot);
+}
+
 async function moveToPage(root: HTMLElement, requestedPage: number) {
   if (root.dataset.paginationMoving === "true") return;
   root.dataset.paginationMoving = "true";
+
+  const scrollSnapshot = captureScrollSnapshot(root);
 
   try {
     for (let step = 0; step < 50; step += 1) {
@@ -146,8 +241,11 @@ async function moveToPage(root: HTMLElement, requestedPage: number) {
       button.click();
       const changed = await pageChange;
       if (!changed) return;
+
+      restoreScrollPosition(scrollSnapshot);
     }
   } finally {
+    await settleScrollPosition(scrollSnapshot);
     delete root.dataset.paginationMoving;
   }
 }
