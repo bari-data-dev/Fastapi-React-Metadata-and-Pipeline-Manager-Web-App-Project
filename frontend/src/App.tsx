@@ -19,7 +19,7 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AuthProvider } from "@/contexts/AuthContext";
 import LoginPage from "./pages/LoginPage";
 import Index from "./pages/Index";
-import OdistsParsingPage from "./pages/metadata/OdistsParsingPage";
+import OdistsParsingPage from "./pages/metadata/OdistsParsingPageV2";
 import ParsingReportPage from "./pages/reports/ParsingReportPageV4";
 import UsersPage from "./pages/admin/UsersPage";
 
