@@ -14,7 +14,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import LoginPage from "./pages/LoginPage";
 import Index from "./pages/Index";
 import OdistsParsingPage from "./pages/metadata/OdistsParsingPage";
-import ParsingReportPage from "./pages/reports/ParsingReportPageV3";
+import ParsingReportPage from "./pages/reports/ParsingReportPageV4";
 import UsersPage from "./pages/admin/UsersPage";
 
 const queryClient = new QueryClient();
