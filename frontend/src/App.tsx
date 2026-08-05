@@ -1,6 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import {
+  BrowserRouter,
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+} from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -19,6 +25,79 @@ import UsersPage from "./pages/admin/UsersPage";
 
 const queryClient = new QueryClient();
 const SIDEBAR_STORAGE_KEY = "metadata_app_sidebar_open";
+const DEFAULT_PROTECTED_PATH = "/metadata/odists-parsing";
+const PROTECTED_PATHS = [
+  "/",
+  "/metadata/odists-parsing",
+  "/reports/parsing",
+  "/admin/users",
+] as const;
+
+type ProtectedPath = (typeof PROTECTED_PATHS)[number];
+
+function isProtectedPath(pathname: string): pathname is ProtectedPath {
+  return PROTECTED_PATHS.includes(pathname as ProtectedPath);
+}
+
+function PersistentProtectedPages() {
+  const location = useLocation();
+  const activePath = isProtectedPath(location.pathname)
+    ? location.pathname
+    : DEFAULT_PROTECTED_PATH;
+  const [visitedPaths, setVisitedPaths] = useState<Set<ProtectedPath>>(
+    () => new Set([activePath])
+  );
+
+  useEffect(() => {
+    setVisitedPaths((current) => {
+      if (current.has(activePath)) return current;
+      const next = new Set(current);
+      next.add(activePath);
+      return next;
+    });
+  }, [activePath]);
+
+  if (!isProtectedPath(location.pathname)) {
+    return <Navigate to={DEFAULT_PROTECTED_PATH} replace />;
+  }
+
+  const shouldRender = (path: ProtectedPath) =>
+    path === activePath || visitedPaths.has(path);
+
+  return (
+    <>
+      {shouldRender("/") && (
+        <div hidden={activePath !== "/"} aria-hidden={activePath !== "/"}>
+          <Index />
+        </div>
+      )}
+      {shouldRender("/metadata/odists-parsing") && (
+        <div
+          hidden={activePath !== "/metadata/odists-parsing"}
+          aria-hidden={activePath !== "/metadata/odists-parsing"}
+        >
+          <OdistsParsingPage />
+        </div>
+      )}
+      {shouldRender("/reports/parsing") && (
+        <div
+          hidden={activePath !== "/reports/parsing"}
+          aria-hidden={activePath !== "/reports/parsing"}
+        >
+          <ParsingReportPage />
+        </div>
+      )}
+      {shouldRender("/admin/users") && (
+        <div
+          hidden={activePath !== "/admin/users"}
+          aria-hidden={activePath !== "/admin/users"}
+        >
+          <UsersPage />
+        </div>
+      )}
+    </>
+  );
+}
 
 function ProtectedContent() {
   const { state, isMobile, setOpen, setOpenMobile } = useSidebar();
@@ -41,13 +120,7 @@ function ProtectedContent() {
           onPointerDownCapture={collapseSidebarFromPage}
         >
           <PageTransition>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/metadata/odists-parsing" element={<OdistsParsingPage />} />
-              <Route path="/reports/parsing" element={<ParsingReportPage />} />
-              <Route path="/admin/users" element={<UsersPage />} />
-              <Route path="*" element={<Navigate to="/metadata/odists-parsing" replace />} />
-            </Routes>
+            <PersistentProtectedPages />
           </PageTransition>
         </div>
       </main>
