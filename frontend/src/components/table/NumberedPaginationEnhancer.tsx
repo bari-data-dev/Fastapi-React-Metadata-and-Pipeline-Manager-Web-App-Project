@@ -1,6 +1,5 @@
 import { ReactNode, useEffect, useRef } from "react";
 
-const PAGE_SIZE_OPTIONS = [10, 25, 50, 100, 200];
 const PAGE_WINDOW_SIZE = 5;
 
 type PaginationState = {
@@ -97,6 +96,9 @@ function waitForPageChange(
 ) {
   return new Promise<boolean>((resolve) => {
     let settled = false;
+    let observer: MutationObserver;
+    let timeout = 0;
+
     const finish = (changed: boolean) => {
       if (settled) return;
       settled = true;
@@ -105,7 +107,7 @@ function waitForPageChange(
       resolve(changed);
     };
 
-    const observer = new MutationObserver(() => {
+    observer = new MutationObserver(() => {
       const state = findPaginationState(root);
       if (state && state.currentPage !== previousPage) finish(true);
     });
@@ -116,7 +118,7 @@ function waitForPageChange(
       characterData: true,
     });
 
-    const timeout = window.setTimeout(() => finish(false), timeoutMs);
+    timeout = window.setTimeout(() => finish(false), timeoutMs);
   });
 }
 
@@ -140,8 +142,9 @@ async function moveToPage(root: HTMLElement, requestedPage: number) {
       if (button.disabled) return;
 
       const previousPage = state.currentPage;
+      const pageChange = waitForPageChange(root, previousPage);
       button.click();
-      const changed = await waitForPageChange(root, previousPage);
+      const changed = await pageChange;
       if (!changed) return;
     }
   } finally {
