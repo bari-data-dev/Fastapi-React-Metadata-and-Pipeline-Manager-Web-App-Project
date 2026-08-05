@@ -4,23 +4,41 @@ function normalizedText(element: Element | null) {
   return (element?.textContent || "").replace(/\s+/g, " ").trim();
 }
 
-function findFieldListButton(): HTMLButtonElement | null {
+function isVisible(element: HTMLElement | null) {
+  if (!element || element.hidden || element.getClientRects().length === 0) {
+    return false;
+  }
+  const style = window.getComputedStyle(element);
+  return style.display !== "none" && style.visibility !== "hidden";
+}
+
+function findVisibleButtonByText(text: string): HTMLButtonElement | null {
   return (
     Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find(
-      (button) => normalizedText(button) === "Field List"
+      (button) => isVisible(button) && normalizedText(button) === text
     ) || null
   );
+}
+
+function findFieldListButton(): HTMLButtonElement | null {
+  return findVisibleButtonByText("Field List");
 }
 
 function findFieldListPanel(): HTMLElement | null {
   const title = Array.from(
     document.querySelectorAll<HTMLElement>("h1, h2, h3, h4")
-  ).find((element) => normalizedText(element) === "PILIH KOLOM");
+  ).find(
+    (element) =>
+      isVisible(element) && normalizedText(element) === "PILIH KOLOM"
+  );
   if (!title) return null;
 
   let current: HTMLElement | null = title.parentElement;
   while (current && current !== document.body) {
-    if (current.querySelector('input[placeholder="Cari nama field..."]')) {
+    if (
+      isVisible(current) &&
+      current.querySelector('input[placeholder="Cari nama field..."]')
+    ) {
       return current;
     }
     current = current.parentElement;
@@ -31,13 +49,17 @@ function findFieldListPanel(): HTMLElement | null {
 function isValueFilterModalOpen() {
   return Array.from(
     document.querySelectorAll<HTMLElement>("h1, h2, h3, h4")
-  ).some((element) => normalizedText(element).startsWith("FILTER BY VALUE:"));
+  ).some(
+    (element) =>
+      isVisible(element) &&
+      normalizedText(element).startsWith("FILTER BY VALUE:")
+  );
 }
 
 function findOdistBatchActionButton(): HTMLButtonElement | null {
   const buttons = Array.from(
     document.querySelectorAll<HTMLButtonElement>("button")
-  );
+  ).filter((button) => isVisible(button));
 
   const confirmButton = buttons.find((button) => {
     const text = normalizedText(button);
@@ -51,6 +73,22 @@ function findOdistBatchActionButton(): HTMLButtonElement | null {
       return !button.disabled && text.startsWith("Save All");
     }) || null
   );
+}
+
+function resetFiltersForActivePage() {
+  const pathname = window.location.pathname;
+
+  if (pathname === "/metadata/odists-parsing") {
+    findVisibleButtonByText("Reset Filter")?.click();
+    return true;
+  }
+
+  if (pathname === "/reports/parsing") {
+    findVisibleButtonByText("Reset")?.click();
+    return true;
+  }
+
+  return false;
 }
 
 function isMainOdistTableContainer(element: HTMLElement) {
@@ -101,9 +139,19 @@ export function InteractionEnhancements() {
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      const isSaveShortcut =
-        (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s";
-      if (!isSaveShortcut) return;
+      const hasCommandModifier = event.ctrlKey || event.metaKey;
+      if (!hasCommandModifier) return;
+
+      const key = event.key.toLowerCase();
+
+      if (key === "r" && resetFiltersForActivePage()) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        return;
+      }
+
+      if (key !== "s") return;
       if (window.location.pathname !== "/metadata/odists-parsing") return;
 
       event.preventDefault();
