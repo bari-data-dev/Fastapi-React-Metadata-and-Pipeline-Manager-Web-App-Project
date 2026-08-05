@@ -3,7 +3,7 @@ import { useEffect } from "react";
 const ODIST_OLD_HELP_TEXT =
   "Geser batas kanan header untuk resize kolom. Double-click untuk reset.";
 const ODIST_NEW_HELP_TEXT =
-  "CTRL + R untuk reset filter, CTRL + S untuk save perubahan";
+  "CTRL + R untuk reset filter | CTRL + S untuk save perubahan";
 
 function normalizedText(element: Element | null) {
   return (element?.textContent || "").replace(/\s+/g, " ").trim();
