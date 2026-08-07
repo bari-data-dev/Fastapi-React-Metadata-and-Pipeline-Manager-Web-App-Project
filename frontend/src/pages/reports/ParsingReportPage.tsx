@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { TablePagination } from "@/components/table/TablePagination";
 
 const CHANGE_TYPES = [
   "PARSING",
@@ -187,7 +188,7 @@ function SortHeader({
   );
 }
 
-export default function ParsingReportPageV3() {
+export default function ParsingReportPage() {
   const now = useMemo(() => new Date(), []);
   const firstDay = useMemo(
     () => new Date(now.getFullYear(), now.getMonth(), 1),
@@ -220,7 +221,7 @@ export default function ParsingReportPageV3() {
     useState<SortDirection>("desc");
 
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(50);
+  const [pageSize, setPageSize] = useState(10);
   const [summary, setSummary] = useState<ParsingReportSummary | null>(null);
   const [effective, setEffective] =
     useState<PagedResult<ParsingEffectiveItem> | null>(null);
@@ -702,7 +703,7 @@ export default function ParsingReportPageV3() {
 
       <Card>
         <CardContent className="space-y-3 p-0 sm:p-4">
-          <div className="overflow-x-auto rounded-md border-0 sm:border">
+          <div className="max-h-[62dvh] w-full touch-auto overflow-auto overscroll-contain rounded-md border-0 sm:max-h-[68vh] sm:border">
             {tab === "effective" ? (
               <table className="w-full min-w-[1550px] text-sm">
                 <thead className="sticky top-0 z-10 bg-background shadow-sm">
@@ -720,7 +721,7 @@ export default function ParsingReportPageV3() {
                   </tr>
                 </thead>
                 <tbody>
-                  {loadingTable ? (
+                  {loadingTable && !effective ? (
                     <tr>
                       <td colSpan={13} className="p-8 text-center">
                         Memuat report...
@@ -818,7 +819,7 @@ export default function ParsingReportPageV3() {
                   </tr>
                 </thead>
                 <tbody>
-                  {loadingTable ? (
+                  {loadingTable && !history ? (
                     <tr>
                       <td colSpan={7} className="p-8 text-center">
                         Memuat histori...
@@ -883,46 +884,19 @@ export default function ParsingReportPageV3() {
             )}
           </div>
 
-          <div className="flex flex-col gap-3 px-3 pb-3 sm:flex-row sm:items-center sm:justify-between sm:px-0 sm:pb-0">
-            <div className="flex items-center gap-2">
-              <span>Total {activePage?.total ?? 0} row</span>
-              <select
-                className="h-9 rounded-md border bg-background px-2"
-                value={pageSize}
-                onChange={(event) => {
-                  setPageSize(Number(event.target.value));
-                  setPage(1);
-                }}
-              >
-                {[25, 50, 100, 200].map((size) => (
-                  <option key={size} value={size}>
-                    {size}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex items-center justify-between gap-2 sm:justify-end">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page <= 1}
-                onClick={() => setPage((value) => value - 1)}
-              >
-                Previous
-              </Button>
-              <span className="whitespace-nowrap">
-                Page {activePage?.page ?? page} /{" "}
-                {activePage?.total_pages ?? 1}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page >= (activePage?.total_pages ?? 1)}
-                onClick={() => setPage((value) => value + 1)}
-              >
-                Next
-              </Button>
-            </div>
+          <div className="px-3 pb-3 sm:px-0 sm:pb-0">
+            <TablePagination
+              page={activePage?.page ?? page}
+              pageSize={pageSize}
+              totalPages={activePage?.total_pages ?? 1}
+              totalRows={activePage?.total ?? 0}
+              loading={loadingTable}
+              onPageChange={setPage}
+              onPageSizeChange={(size) => {
+                setPage(1);
+                setPageSize(size);
+              }}
+            />
           </div>
         </CardContent>
       </Card>
