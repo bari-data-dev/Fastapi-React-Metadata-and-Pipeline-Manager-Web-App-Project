@@ -19,8 +19,8 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AuthProvider } from "@/contexts/AuthContext";
 import LoginPage from "./pages/LoginPage";
 import Index from "./pages/Index";
-import OdistsParsingPage from "./pages/metadata/OdistsParsingPageV2";
-import ParsingReportPage from "./pages/reports/ParsingReportPageV4";
+import OdistsParsingPage from "./pages/metadata/OdistsParsingRoute";
+import ParsingReportPage from "./pages/reports/ParsingReportRoute";
 import UsersPage from "./pages/admin/UsersPage";
 
 const queryClient = new QueryClient();
