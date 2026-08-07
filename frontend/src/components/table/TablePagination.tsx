@@ -15,6 +15,11 @@ type TablePaginationProps = {
   onPageSizeChange: (pageSize: number) => void;
 };
 
+type ViewportSnapshot = {
+  x: number;
+  y: number;
+};
+
 export function TablePagination({
   page,
   pageSize,
@@ -29,6 +34,7 @@ export function TablePagination({
   const safePage = Math.min(Math.max(1, page), safeTotalPages);
   const [windowStart, setWindowStart] = useState(1);
   const previousPageRef = useRef(safePage);
+  const viewportSnapshotRef = useRef<ViewportSnapshot | null>(null);
 
   useEffect(() => {
     const windowSize = Math.min(PAGE_WINDOW_SIZE, safeTotalPages);
@@ -60,6 +66,31 @@ export function TablePagination({
     previousPageRef.current = safePage;
   }, [safePage, safeTotalPages]);
 
+  useEffect(() => {
+    const snapshot = viewportSnapshotRef.current;
+    if (!snapshot) return;
+
+    const restore = () => {
+      window.scrollTo({ left: snapshot.x, top: snapshot.y, behavior: "auto" });
+    };
+
+    const frame = window.requestAnimationFrame(restore);
+
+    if (!loading) {
+      const secondFrame = window.requestAnimationFrame(() => {
+        restore();
+        viewportSnapshotRef.current = null;
+      });
+
+      return () => {
+        window.cancelAnimationFrame(frame);
+        window.cancelAnimationFrame(secondFrame);
+      };
+    }
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [loading, safePage, totalRows]);
+
   const windowSize = Math.min(PAGE_WINDOW_SIZE, safeTotalPages);
   const maxStart = Math.max(1, safeTotalPages - windowSize + 1);
   const startPage = Math.min(Math.max(1, windowStart), maxStart);
@@ -72,10 +103,24 @@ export function TablePagination({
     (_, index) => startPage + index
   );
 
+  const captureViewport = () => {
+    viewportSnapshotRef.current = {
+      x: window.scrollX,
+      y: window.scrollY,
+    };
+  };
+
   const changePage = (nextPage: number) => {
     const target = Math.min(Math.max(1, nextPage), safeTotalPages);
     if (target === safePage || loading) return;
+    captureViewport();
     onPageChange(target);
+  };
+
+  const changePageSize = (nextPageSize: number) => {
+    if (nextPageSize === pageSize || loading) return;
+    captureViewport();
+    onPageSizeChange(nextPageSize);
   };
 
   return (
@@ -88,7 +133,7 @@ export function TablePagination({
             className="h-9 rounded-md border bg-background px-2"
             value={pageSize}
             disabled={loading}
-            onChange={(event) => onPageSizeChange(Number(event.target.value))}
+            onChange={(event) => changePageSize(Number(event.target.value))}
           >
             {pageSizeOptions.map((size) => (
               <option key={size} value={size}>
