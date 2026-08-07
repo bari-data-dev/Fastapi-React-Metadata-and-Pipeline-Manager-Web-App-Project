@@ -21,6 +21,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { TablePagination } from "@/components/table/TablePagination";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
@@ -101,7 +102,7 @@ export default function OdistsParsingPage() {
   const [fieldSearch, setFieldSearch] = useState("");
   const [showFields, setShowFields] = useState(false);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(50);
+  const [pageSize, setPageSize] = useState(10);
   const [sortBy, setSortBy] = useState("id");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [loading, setLoading] = useState(false);
@@ -577,28 +578,9 @@ export default function OdistsParsingPage() {
                 Geser tabel ke samping untuk melihat kolom lain.
               </span>
               <span className="hidden text-xs text-muted-foreground sm:inline">
-                Geser batas kanan header untuk resize kolom. Double-click untuk
-                reset.
+                CTRL + R untuk reset filter, CTRL + S untuk save perubahan
               </span>
             </div>
-
-            <label className="flex w-full items-center justify-between text-sm sm:ml-auto sm:w-auto sm:justify-start">
-              <span>Rows</span>
-              <select
-                className="ml-2 min-w-24 rounded border bg-background px-2 py-2"
-                value={pageSize}
-                onChange={(event) => {
-                  setPage(1);
-                  setPageSize(Number(event.target.value));
-                }}
-              >
-                {[25, 50, 100, 200].map((size) => (
-                  <option key={size} value={size}>
-                    {size}
-                  </option>
-                ))}
-              </select>
-            </label>
           </div>
 
           {error && (
@@ -689,7 +671,7 @@ export default function OdistsParsingPage() {
                 </tr>
               </thead>
               <tbody>
-                {loading ? (
+                {loading && !data ? (
                   <tr>
                     <td
                       className="p-6 text-center"
@@ -773,34 +755,18 @@ export default function OdistsParsingPage() {
             </table>
           </div>
 
-          <div className="flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-            <span className="text-center sm:text-left">
-              Total {data?.total ?? 0} row
-            </span>
-            <div className="grid w-full grid-cols-[1fr_auto_1fr] items-center gap-2 sm:flex sm:w-auto">
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full"
-                disabled={page <= 1}
-                onClick={() => setPage((value) => value - 1)}
-              >
-                Previous
-              </Button>
-              <span className="whitespace-nowrap text-center text-xs sm:text-sm">
-                Page {data?.page ?? page} / {data?.total_pages ?? 1}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full"
-                disabled={page >= (data?.total_pages ?? 1)}
-                onClick={() => setPage((value) => value + 1)}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
+          <TablePagination
+            page={data?.page ?? page}
+            pageSize={pageSize}
+            totalPages={data?.total_pages ?? 1}
+            totalRows={data?.total ?? 0}
+            loading={loading}
+            onPageChange={setPage}
+            onPageSizeChange={(size) => {
+              setPage(1);
+              setPageSize(size);
+            }}
+          />
         </CardContent>
       </Card>
 
