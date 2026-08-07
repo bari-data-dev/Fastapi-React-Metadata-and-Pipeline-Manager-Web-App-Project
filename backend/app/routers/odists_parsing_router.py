@@ -20,7 +20,7 @@ router = APIRouter(prefix="/odists-parsing", tags=["ODIST Parsing"])
 @router.get("", response_model=ApiResponse[OdistsPage])
 def get_odists_page(
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(10, ge=1, le=200),
     columns: str | None = None,
     filters: str | None = None,
     sort_by: str = "id",
