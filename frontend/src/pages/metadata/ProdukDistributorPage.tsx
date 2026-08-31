@@ -51,7 +51,13 @@ const DISPLAY_COLUMN_ORDER = [
   "Kode_Produk_GPL",
   "Nama_Produk_GPL",
   "Nama_Produk_Dist",
+  "dwh_created_by",
+  "dwh_updated_by",
+  "dwh_created_at",
+  "dwh_updated_at",
 ];
+
+const DATE_FIELDS = new Set(["dwh_created_at", "dwh_updated_at"]);
 
 const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
   id: 100,
@@ -61,6 +67,10 @@ const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
   Kode_Produk_GPL: 170,
   Nama_Produk_GPL: 330,
   Nama_Produk_Dist: 330,
+  dwh_created_by: 190,
+  dwh_updated_by: 190,
+  dwh_created_at: 190,
+  dwh_updated_at: 190,
 };
 
 const MIN_COLUMN_WIDTH = 100;
@@ -94,10 +104,26 @@ function normalizedValue(value: unknown) {
   return value === "" ? null : value;
 }
 
-function displayValue(value: unknown) {
+function formatDateTime(value: unknown) {
+  if (value === null || value === undefined || value === "") return "-";
+  const date = new Date(String(value));
+  if (Number.isNaN(date.getTime())) return String(value);
+  return new Intl.DateTimeFormat("id-ID", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).format(date);
+}
+
+function displayValue(field: string, value: unknown) {
   if (value === null || value === undefined) {
     return <span className="italic text-muted-foreground">NULL</span>;
   }
+  if (DATE_FIELDS.has(field)) return formatDateTime(value);
   return String(value);
 }
 
@@ -552,27 +578,27 @@ export default function ProdukDistributorPage() {
         <td
           key={column.name}
           className={cn(
-            "sticky left-0 z-10 overflow-hidden border-b p-2 align-top",
+            "overflow-hidden border-b p-2 align-middle",
+            column.name === "id" && "sticky left-0 z-10",
             isPendingDelete ? "bg-destructive/10 line-through" : "bg-background"
           )}
           style={{ width: getColumnWidth(column.name) }}
         >
-          <div
-            className="truncate whitespace-nowrap"
-            title={String(value ?? "NULL")}
-          >
-            {displayValue(value)}
+          <div className="truncate whitespace-nowrap" title={String(value ?? "NULL")}>
+            {displayValue(column.name, value)}
           </div>
-          {!isPendingDelete && Object.keys(getChangedValues(row)).length > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-2 h-7 px-2 text-xs"
-              onClick={() => cancelRow(row)}
-            >
-              Cancel Row
-            </Button>
-          )}
+          {column.name === "id" &&
+            !isPendingDelete &&
+            Object.keys(getChangedValues(row)).length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2 h-7 px-2 text-xs"
+                onClick={() => cancelRow(row)}
+              >
+                Cancel Row
+              </Button>
+            )}
         </td>
       );
     }
@@ -621,6 +647,22 @@ export default function ProdukDistributorPage() {
       );
     }
 
+    if (!column.editable) {
+      const autoValue =
+        column.name === "dwh_created_by" || column.name === "dwh_created_at"
+          ? "AUTO"
+          : "-";
+      return (
+        <td
+          key={column.name}
+          className="border-b border-amber-300 bg-amber-100 p-2 align-middle text-muted-foreground dark:border-amber-800 dark:bg-amber-950/60"
+          style={{ width: getColumnWidth(column.name) }}
+        >
+          {autoValue}
+        </td>
+      );
+    }
+
     return (
       <td
         key={column.name}
@@ -650,7 +692,7 @@ export default function ProdukDistributorPage() {
         <div>
           <h1 className="text-xl font-bold sm:text-2xl">Produk Distributor</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            CRUD master produk distributor pada CRM.dbo.Produk_Distributor.
+            CRUD master produk distributor pada bronze_so.Produk_Distributor.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -897,7 +939,7 @@ export default function ProdukDistributorPage() {
                 ) : insertRows.length ? null : loading ? (
                   <tr>
                     <td colSpan={columns.length + 1} className="p-8 text-center">
-                      Memuat data CRM...
+                      Memuat data Produk Distributor...
                     </td>
                   </tr>
                 ) : (
@@ -937,7 +979,7 @@ export default function ProdukDistributorPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <p>
-                Simpan <strong>{dirtyRowCount}</strong> row perubahan ke CRM?
+                Simpan <strong>{dirtyRowCount}</strong> row perubahan?
               </p>
               <div className="rounded-md border bg-muted/30 p-3 text-sm">
                 <div>Row baru: {pendingCreates.length}</div>
