@@ -5,8 +5,14 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 from sqlalchemy import text
 from sqlmodel import Session
 
+from app.models.app_user import AppUser
+from app.services import activity_audit_service
+
 
 TABLE_SQL = "[bronze_so].[ARTBST]"
+AUDIT_TABLE_NAME = "bronze_so.ARTBST"
+AUDIT_MODULE_KEY = "ARTBST"
+AUDIT_MODULE_LABEL = "ARTBST"
 
 FIELD_DEFS: Dict[str, Dict[str, Any]] = {
     "id": {"data_type": "int", "nullable": False, "max_length": None, "editable": False, "label": "ID"},
@@ -121,6 +127,23 @@ def _fetch_one_by_id(db: Session, record_id: int) -> Optional[Dict[str, Any]]:
     return dict(row) if row else None
 
 
+def _business_snapshot(row: Dict[str, Any]) -> Dict[str, Any]:
+    return {field: row.get(field) for field in EDITABLE_FIELDS}
+
+
+def _record_label(values: Dict[str, Any]) -> str:
+    parts = [values.get("artcode"), values.get("oms30_0")]
+    return " | ".join(str(value) for value in parts if value not in (None, ""))
+
+
+def _actual_changes(old_row: Dict[str, Any], values: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        field: value
+        for field, value in values.items()
+        if old_row.get(field) != value
+    }
+
+
 def get_page(db: Session, page: int, page_size: int, filters_json: Optional[str], sort_by: str, sort_dir: str) -> Dict[str, Any]:
     if sort_by not in FIELD_DEFS:
         raise ValueError("Kolom sorting tidak valid")
@@ -215,10 +238,12 @@ def _normalize_create_values(values: Dict[str, Any]) -> Dict[str, Any]:
     return {field: _normalize_write_value(field, values.get(field)) for field in EDITABLE_FIELDS}
 
 
-def create_record(db: Session, values: Dict[str, Any], actor_name: str) -> Dict[str, Any]:
+def create_record(db: Session, values: Dict[str, Any], current_user: AppUser) -> Dict[str, Any]:
     normalized = _normalize_create_values(values)
     column_sql = ", ".join(_column_sql(field) for field in EDITABLE_FIELDS)
     value_sql = ", ".join(f":{field}" for field in EDITABLE_FIELDS)
+    actor = activity_audit_service.actor_name(current_user)[:100]
+    batch_id = activity_audit_service.new_batch_id()
     try:
         record_id = int(
             db.execute(
@@ -229,8 +254,22 @@ def create_record(db: Session, values: Dict[str, Any], actor_name: str) -> Dict[
                     VALUES ({value_sql}, :actor_name, SYSDATETIME())
                     """
                 ),
-                {**normalized, "actor_name": actor_name[:100]},
+                {**normalized, "actor_name": actor},
             ).scalar_one()
+        )
+        activity_audit_service.record_activity(
+            db,
+            module_key=AUDIT_MODULE_KEY,
+            module_label=AUDIT_MODULE_LABEL,
+            table_name=AUDIT_TABLE_NAME,
+            record_id=record_id,
+            record_label=_record_label(normalized),
+            action=activity_audit_service.ACTION_INSERT,
+            current_user=current_user,
+            changed_fields=EDITABLE_FIELDS,
+            old_values={},
+            new_values=normalized,
+            batch_id=batch_id,
         )
         db.commit()
     except Exception:
@@ -242,13 +281,22 @@ def create_record(db: Session, values: Dict[str, Any], actor_name: str) -> Dict[
     return created
 
 
-def update_record(db: Session, record_id: int, values: Dict[str, Any], actor_name: str) -> Dict[str, Any]:
-    if _fetch_one_by_id(db, record_id) is None:
+def update_record(db: Session, record_id: int, values: Dict[str, Any], current_user: AppUser) -> Dict[str, Any]:
+    old_row = _fetch_one_by_id(db, record_id)
+    if old_row is None:
         raise LookupError("ARTBST tidak ditemukan")
     normalized = _normalize_values(values)
-    assignments = ", ".join(f"{_column_sql(field)} = :v_{field}" for field in normalized)
-    params = {f"v_{field}": value for field, value in normalized.items()}
-    params.update({"id": record_id, "actor_name": actor_name[:100]})
+    changed = _actual_changes(old_row, normalized)
+    if not changed:
+        return old_row
+
+    assignments = ", ".join(f"{_column_sql(field)} = :v_{field}" for field in changed)
+    params = {f"v_{field}": value for field, value in changed.items()}
+    actor = activity_audit_service.actor_name(current_user)[:100]
+    params.update({"id": record_id, "actor_name": actor})
+    new_snapshot = _business_snapshot(old_row)
+    new_snapshot.update(changed)
+    batch_id = activity_audit_service.new_batch_id()
     try:
         db.execute(
             text(
@@ -260,6 +308,20 @@ def update_record(db: Session, record_id: int, values: Dict[str, Any], actor_nam
             ),
             params,
         )
+        activity_audit_service.record_activity(
+            db,
+            module_key=AUDIT_MODULE_KEY,
+            module_label=AUDIT_MODULE_LABEL,
+            table_name=AUDIT_TABLE_NAME,
+            record_id=record_id,
+            record_label=_record_label(new_snapshot),
+            action=activity_audit_service.ACTION_UPDATE,
+            current_user=current_user,
+            changed_fields=changed.keys(),
+            old_values={field: old_row.get(field) for field in changed},
+            new_values=changed,
+            batch_id=batch_id,
+        )
         db.commit()
     except Exception:
         db.rollback()
@@ -270,22 +332,45 @@ def update_record(db: Session, record_id: int, values: Dict[str, Any], actor_nam
     return updated
 
 
-def update_batch(db: Session, items: Iterable[Dict[str, Any]], actor_name: str) -> Dict[str, Any]:
-    prepared: List[Tuple[int, Dict[str, Any]]] = []
+def update_batch(db: Session, items: Iterable[Dict[str, Any]], current_user: AppUser) -> Dict[str, Any]:
+    prepared: List[Tuple[int, Dict[str, Any], Dict[str, Any]]] = []
     for item in items:
         record_id = int(item["id"])
-        if _fetch_one_by_id(db, record_id) is None:
+        old_row = _fetch_one_by_id(db, record_id)
+        if old_row is None:
             raise LookupError(f"ARTBST ID {record_id} tidak ditemukan")
-        prepared.append((record_id, _normalize_values(item["values"])))
+        normalized = _normalize_values(item["values"])
+        changed = _actual_changes(old_row, normalized)
+        if changed:
+            prepared.append((record_id, old_row, changed))
+
     updated_ids: List[int] = []
+    actor = activity_audit_service.actor_name(current_user)[:100]
+    batch_id = activity_audit_service.new_batch_id()
     try:
-        for record_id, values in prepared:
+        for record_id, old_row, values in prepared:
             assignments = ", ".join(f"{_column_sql(field)} = :v_{field}" for field in values)
             params = {f"v_{field}": value for field, value in values.items()}
-            params.update({"id": record_id, "actor_name": actor_name[:100]})
+            params.update({"id": record_id, "actor_name": actor})
             db.execute(
                 text(f"UPDATE {TABLE_SQL} SET {assignments}, [dwh_updated_by] = :actor_name, [dwh_updated_at] = SYSDATETIME() WHERE [id] = :id"),
                 params,
+            )
+            new_snapshot = _business_snapshot(old_row)
+            new_snapshot.update(values)
+            activity_audit_service.record_activity(
+                db,
+                module_key=AUDIT_MODULE_KEY,
+                module_label=AUDIT_MODULE_LABEL,
+                table_name=AUDIT_TABLE_NAME,
+                record_id=record_id,
+                record_label=_record_label(new_snapshot),
+                action=activity_audit_service.ACTION_UPDATE,
+                current_user=current_user,
+                changed_fields=values.keys(),
+                old_values={field: old_row.get(field) for field in values},
+                new_values=values,
+                batch_id=batch_id,
             )
             updated_ids.append(record_id)
         db.commit()
@@ -295,27 +380,45 @@ def update_batch(db: Session, items: Iterable[Dict[str, Any]], actor_name: str) 
     return {"updated_count": len(updated_ids), "updated_ids": updated_ids}
 
 
-def save_changes(db: Session, creates: Iterable[Dict[str, Any]], updates: Iterable[Dict[str, Any]], deletes: Iterable[int], actor_name: str) -> Dict[str, Any]:
+def save_changes(
+    db: Session,
+    creates: Iterable[Dict[str, Any]],
+    updates: Iterable[Dict[str, Any]],
+    deletes: Iterable[int],
+    current_user: AppUser,
+) -> Dict[str, Any]:
     prepared_creates = [_normalize_create_values(values) for values in creates]
     delete_ids = list(dict.fromkeys(int(record_id) for record_id in deletes))
     delete_set = set(delete_ids)
-    prepared_updates: List[Tuple[int, Dict[str, Any]]] = []
+    prepared_updates: List[Tuple[int, Dict[str, Any], Dict[str, Any]]] = []
+
     for item in updates:
         record_id = int(item["id"])
         if record_id in delete_set:
             raise ValueError(f"ID {record_id} tidak boleh di-update dan di-delete bersamaan")
-        if _fetch_one_by_id(db, record_id) is None:
+        old_row = _fetch_one_by_id(db, record_id)
+        if old_row is None:
             raise LookupError(f"ARTBST ID {record_id} tidak ditemukan")
-        prepared_updates.append((record_id, _normalize_values(item["values"])))
+        normalized = _normalize_values(item["values"])
+        changed = _actual_changes(old_row, normalized)
+        if changed:
+            prepared_updates.append((record_id, old_row, changed))
+
+    delete_rows: Dict[int, Dict[str, Any]] = {}
     for record_id in delete_ids:
-        if _fetch_one_by_id(db, record_id) is None:
+        old_row = _fetch_one_by_id(db, record_id)
+        if old_row is None:
             raise LookupError(f"ARTBST ID {record_id} tidak ditemukan")
+        delete_rows[record_id] = old_row
+
     if not prepared_creates and not prepared_updates and not delete_ids:
         raise ValueError("Tidak ada perubahan yang dikirim")
 
     created_ids: List[int] = []
     updated_ids: List[int] = []
     deleted_ids: List[int] = []
+    actor = activity_audit_service.actor_name(current_user)[:100]
+    batch_id = activity_audit_service.new_batch_id()
     insert_columns = ", ".join(_column_sql(field) for field in EDITABLE_FIELDS)
     insert_values = ", ".join(f":{field}" for field in EDITABLE_FIELDS)
     try:
@@ -329,21 +432,69 @@ def save_changes(db: Session, creates: Iterable[Dict[str, Any]], updates: Iterab
                         VALUES ({insert_values}, :actor_name, SYSDATETIME())
                         """
                     ),
-                    {**values, "actor_name": actor_name[:100]},
+                    {**values, "actor_name": actor},
                 ).scalar_one()
             )
+            activity_audit_service.record_activity(
+                db,
+                module_key=AUDIT_MODULE_KEY,
+                module_label=AUDIT_MODULE_LABEL,
+                table_name=AUDIT_TABLE_NAME,
+                record_id=record_id,
+                record_label=_record_label(values),
+                action=activity_audit_service.ACTION_INSERT,
+                current_user=current_user,
+                changed_fields=EDITABLE_FIELDS,
+                old_values={},
+                new_values=values,
+                batch_id=batch_id,
+            )
             created_ids.append(record_id)
-        for record_id, values in prepared_updates:
+
+        for record_id, old_row, values in prepared_updates:
             assignments = ", ".join(f"{_column_sql(field)} = :v_{field}" for field in values)
             params = {f"v_{field}": value for field, value in values.items()}
-            params.update({"id": record_id, "actor_name": actor_name[:100]})
+            params.update({"id": record_id, "actor_name": actor})
             db.execute(
                 text(f"UPDATE {TABLE_SQL} SET {assignments}, [dwh_updated_by] = :actor_name, [dwh_updated_at] = SYSDATETIME() WHERE [id] = :id"),
                 params,
             )
+            new_snapshot = _business_snapshot(old_row)
+            new_snapshot.update(values)
+            activity_audit_service.record_activity(
+                db,
+                module_key=AUDIT_MODULE_KEY,
+                module_label=AUDIT_MODULE_LABEL,
+                table_name=AUDIT_TABLE_NAME,
+                record_id=record_id,
+                record_label=_record_label(new_snapshot),
+                action=activity_audit_service.ACTION_UPDATE,
+                current_user=current_user,
+                changed_fields=values.keys(),
+                old_values={field: old_row.get(field) for field in values},
+                new_values=values,
+                batch_id=batch_id,
+            )
             updated_ids.append(record_id)
+
         for record_id in delete_ids:
+            old_row = delete_rows[record_id]
             db.execute(text(f"DELETE FROM {TABLE_SQL} WHERE [id] = :id"), {"id": record_id})
+            snapshot = _business_snapshot(old_row)
+            activity_audit_service.record_activity(
+                db,
+                module_key=AUDIT_MODULE_KEY,
+                module_label=AUDIT_MODULE_LABEL,
+                table_name=AUDIT_TABLE_NAME,
+                record_id=record_id,
+                record_label=_record_label(snapshot),
+                action=activity_audit_service.ACTION_DELETE,
+                current_user=current_user,
+                changed_fields=EDITABLE_FIELDS,
+                old_values=snapshot,
+                new_values={},
+                batch_id=batch_id,
+            )
             deleted_ids.append(record_id)
         db.commit()
     except Exception:
@@ -360,11 +511,28 @@ def save_changes(db: Session, creates: Iterable[Dict[str, Any]], updates: Iterab
     }
 
 
-def delete_record(db: Session, record_id: int) -> Dict[str, Any]:
-    if _fetch_one_by_id(db, record_id) is None:
+def delete_record(db: Session, record_id: int, current_user: AppUser) -> Dict[str, Any]:
+    old_row = _fetch_one_by_id(db, record_id)
+    if old_row is None:
         raise LookupError("ARTBST tidak ditemukan")
+    snapshot = _business_snapshot(old_row)
+    batch_id = activity_audit_service.new_batch_id()
     try:
         db.execute(text(f"DELETE FROM {TABLE_SQL} WHERE [id] = :id"), {"id": record_id})
+        activity_audit_service.record_activity(
+            db,
+            module_key=AUDIT_MODULE_KEY,
+            module_label=AUDIT_MODULE_LABEL,
+            table_name=AUDIT_TABLE_NAME,
+            record_id=record_id,
+            record_label=_record_label(snapshot),
+            action=activity_audit_service.ACTION_DELETE,
+            current_user=current_user,
+            changed_fields=EDITABLE_FIELDS,
+            old_values=snapshot,
+            new_values={},
+            batch_id=batch_id,
+        )
         db.commit()
     except Exception:
         db.rollback()
