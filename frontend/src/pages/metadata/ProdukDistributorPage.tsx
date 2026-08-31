@@ -11,7 +11,7 @@ import {
   ProdukDistributorBatchUpdateItem,
   ProdukDistributorColumn,
   ProdukDistributorCreateInput,
-  ProdukDistributorPage,
+  ProdukDistributorPage as ProdukDistributorPageData,
   ProdukDistributorRecord,
   produkDistributorApi,
 } from "@/lib/appApi";
@@ -100,7 +100,7 @@ function insertPayload(values: Record<string, string>): ProdukDistributorCreateI
 }
 
 export default function ProdukDistributorPage() {
-  const [data, setData] = useState<ProdukDistributorPage | null>(null);
+  const [data, setData] = useState<ProdukDistributorPageData | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [sortBy, setSortBy] = useState("id");
@@ -416,6 +416,14 @@ export default function ProdukDistributorPage() {
     if (!command) return;
 
     const key = event.key.toLowerCase();
+    if (key === "r") {
+      event.preventDefault();
+      event.stopPropagation();
+      setAppliedFilters({});
+      setPage(1);
+      return;
+    }
+
     if (key === "s" || event.key === "Enter") {
       event.preventDefault();
       event.stopPropagation();
@@ -560,7 +568,7 @@ export default function ProdukDistributorPage() {
               </span>
             </div>
             <span className="text-xs text-muted-foreground">
-              CTRL + S untuk save perubahan
+              CTRL + R untuk reset filter | CTRL + S untuk save perubahan
             </span>
           </div>
 
