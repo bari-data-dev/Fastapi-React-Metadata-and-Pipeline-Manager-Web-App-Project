@@ -5,7 +5,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { Filter, Plus, Trash2 } from "lucide-react";
+import { Copy, Filter, Plus, Trash2 } from "lucide-react";
 import {
   DistinctValue,
   ProdukDistributorBatchUpdateItem,
@@ -56,7 +56,7 @@ const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
 
 const MIN_COLUMN_WIDTH = 100;
 const MAX_COLUMN_WIDTH = 700;
-const ACTION_WIDTH = 64;
+const ACTION_WIDTH = 96;
 
 const EMPTY_INSERT: Record<string, string> = {
   Kode_Dist: "",
@@ -115,10 +115,12 @@ function insertPayload(values: Record<string, string>): ProdukDistributorCreateI
   };
 }
 
-function makeInsertDraft(): InsertDraft {
+function makeInsertDraft(
+  values: Record<string, string> = EMPTY_INSERT
+): InsertDraft {
   return {
     localId: `new-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-    values: { ...EMPTY_INSERT },
+    values: { ...EMPTY_INSERT, ...values },
   };
 }
 
@@ -365,6 +367,27 @@ export default function ProdukDistributorPage() {
     setInsertRows((current) =>
       current.filter((row) => row.localId !== localId)
     );
+  };
+
+  const duplicateInsertRow = (row: InsertDraft) => {
+    setInsertRows((current) => [makeInsertDraft(row.values), ...current]);
+    setSuccessMessage("");
+    setError("");
+  };
+
+  const duplicateExistingRow = (row: ProdukDistributorRecord) => {
+    const values = Object.keys(EMPTY_INSERT).reduce<Record<string, string>>(
+      (result, field) => {
+        const value = getCellValue(row, field);
+        result[field] = value === null || value === undefined ? "" : String(value);
+        return result;
+      },
+      {}
+    );
+
+    setInsertRows((current) => [makeInsertDraft(values), ...current]);
+    setSuccessMessage("");
+    setError("");
   };
 
   const validateInsertRows = () => {
@@ -758,17 +781,30 @@ export default function ProdukDistributorPage() {
                   <tr key={row.localId}>
                     {columns.map((column) => renderInsertCell(row, column))}
                     <td className="sticky right-0 border-b bg-primary/5 p-2 text-center">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                        title="Batalkan row baru"
-                        aria-label="Batalkan row baru"
-                        onClick={() => removeInsertRow(row.localId)}
-                        disabled={batchSaving}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                      <div className="flex items-center justify-center gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          title="Duplicate row baru"
+                          aria-label="Duplicate row baru"
+                          onClick={() => duplicateInsertRow(row)}
+                          disabled={batchSaving}
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          title="Batalkan row baru"
+                          aria-label="Batalkan row baru"
+                          onClick={() => removeInsertRow(row.localId)}
+                          disabled={batchSaving}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -778,17 +814,30 @@ export default function ProdukDistributorPage() {
                     <tr key={row.id} className="hover:bg-muted/30">
                       {columns.map((column) => renderEditableCell(row, column))}
                       <td className="sticky right-0 border-b bg-background p-2 text-center">
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          className="h-8 w-8 p-0"
-                          title={`Delete ID ${row.id}`}
-                          aria-label={`Delete Produk Distributor ID ${row.id}`}
-                          onClick={() => setDeleteTarget(row)}
-                          disabled={batchSaving || deleteSaving}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                        <div className="flex items-center justify-center gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                            title={`Duplicate ID ${row.id}`}
+                            aria-label={`Duplicate Produk Distributor ID ${row.id}`}
+                            onClick={() => duplicateExistingRow(row)}
+                            disabled={batchSaving || deleteSaving}
+                          >
+                            <Copy className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                            title={`Delete ID ${row.id}`}
+                            aria-label={`Delete Produk Distributor ID ${row.id}`}
+                            onClick={() => setDeleteTarget(row)}
+                            disabled={batchSaving || deleteSaving}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))
