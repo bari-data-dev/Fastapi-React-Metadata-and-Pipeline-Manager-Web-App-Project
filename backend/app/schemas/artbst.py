@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 
 
 class ArtbstColumn(BaseModel):
@@ -35,10 +35,17 @@ class ArtbstPage(BaseModel):
 
 
 class ArtbstCreate(BaseModel):
-    artcode: Optional[str] = Field(None, max_length=20)
-    oms30_0: Optional[str] = Field(None, max_length=100)
-    u_konversi: Optional[float] = None
-    verkp_verp: Optional[float] = None
+    artcode: str = Field(..., min_length=1, max_length=20)
+    oms30_0: str = Field(..., min_length=1, max_length=100)
+    u_konversi: float
+    verkp_verp: float
+
+    @validator("artcode", "oms30_0")
+    def required_text_must_not_be_blank(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("Field wajib diisi")
+        return normalized
 
 
 class ArtbstUpdateRequest(BaseModel):
