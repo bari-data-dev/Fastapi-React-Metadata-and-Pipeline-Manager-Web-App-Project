@@ -16,7 +16,7 @@ import { Header } from "@/components/layout/Header";
 import { InteractionEnhancements } from "@/components/layout/InteractionEnhancements";
 import { PageTransition } from "@/components/layout/PageTransition";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import LoginPage from "./pages/LoginPage";
 import Index from "./pages/Index";
 import OdistsParsingPage from "./pages/metadata/OdistsParsingPage";
@@ -43,6 +43,7 @@ function isProtectedPath(pathname: string): pathname is ProtectedPath {
 
 function PersistentProtectedPages() {
   const location = useLocation();
+  const { user } = useAuth();
   const activePath = isProtectedPath(location.pathname)
     ? location.pathname
     : DEFAULT_PROTECTED_PATH;
@@ -60,6 +61,13 @@ function PersistentProtectedPages() {
   }, [activePath]);
 
   if (!isProtectedPath(location.pathname)) {
+    return <Navigate to={DEFAULT_PROTECTED_PATH} replace />;
+  }
+
+  if (
+    location.pathname === "/metadata/produk-distributor" &&
+    user?.role === "INTERN"
+  ) {
     return <Navigate to={DEFAULT_PROTECTED_PATH} replace />;
   }
 
@@ -81,7 +89,7 @@ function PersistentProtectedPages() {
           <OdistsParsingPage />
         </div>
       )}
-      {shouldRender("/metadata/produk-distributor") && (
+      {user?.role !== "INTERN" && shouldRender("/metadata/produk-distributor") && (
         <div
           hidden={activePath !== "/metadata/produk-distributor"}
           aria-hidden={activePath !== "/metadata/produk-distributor"}
