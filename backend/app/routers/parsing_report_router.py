@@ -19,7 +19,7 @@ def _start_of_day(value: date | None) -> datetime | None:
 
 
 def _effective_user_id(current_user: AppUser, requested_user_id: int | None) -> int | None:
-    if current_user.role == "PARSER-INTERN":
+    if current_user.role == "INTERN":
         return int(current_user.user_id)
     return requested_user_id
 
@@ -41,7 +41,7 @@ def get_summary(
         date_to=_start_of_day(date_to),
         user_id=scoped_user_id,
     )
-    if current_user.role == "PARSER-INTERN":
+    if current_user.role == "INTERN":
         data["member_options"] = [
             option
             for option in data.get("member_options", [])
