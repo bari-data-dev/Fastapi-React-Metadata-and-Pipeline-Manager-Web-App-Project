@@ -346,8 +346,10 @@ def _normalize_write_value(field: str, value: Any) -> Any:
         raise ValueError(f"{field} tidak boleh NULL")
 
     text = str(value)
-    if text == "" and nullable:
-        return None
+    if text == "":
+        if nullable:
+            return None
+        raise ValueError(f"{field} tidak boleh kosong")
 
     max_length = definition["max_length"]
     if max_length is not None and len(text) > int(max_length):
@@ -364,11 +366,15 @@ def _normalize_values(values: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def create_record(connection: Any, values: Dict[str, Any]) -> Dict[str, Any]:
+def _normalize_create_values(values: Dict[str, Any]) -> Dict[str, Any]:
     normalized: Dict[str, Any] = {}
     for field in EDITABLE_FIELDS:
         normalized[field] = _normalize_write_value(field, values.get(field))
+    return normalized
 
+
+def create_record(connection: Any, values: Dict[str, Any]) -> Dict[str, Any]:
+    normalized = _normalize_create_values(values)
     columns_sql = ", ".join(_column_sql(field) for field in EDITABLE_FIELDS)
     placeholders = ", ".join("?" for _ in EDITABLE_FIELDS)
     params = [normalized[field] for field in EDITABLE_FIELDS]
@@ -462,6 +468,69 @@ def update_batch(
         cursor.close()
 
     return {
+        "updated_count": len(updated_ids),
+        "updated_ids": updated_ids,
+    }
+
+
+def save_changes(
+    connection: Any,
+    creates: Iterable[Dict[str, Any]],
+    updates: Iterable[Dict[str, Any]],
+) -> Dict[str, Any]:
+    prepared_creates = [_normalize_create_values(values) for values in creates]
+
+    prepared_updates: List[Tuple[int, Dict[str, Any]]] = []
+    for item in updates:
+        record_id = int(item["id"])
+        if _fetch_one_by_id(connection, record_id) is None:
+            raise LookupError(f"Produk Distributor ID {record_id} tidak ditemukan")
+        prepared_updates.append(
+            (record_id, _normalize_values(item["values"]))
+        )
+
+    if not prepared_creates and not prepared_updates:
+        raise ValueError("Tidak ada perubahan yang dikirim")
+
+    insert_columns = ", ".join(_column_sql(field) for field in EDITABLE_FIELDS)
+    insert_placeholders = ", ".join("?" for _ in EDITABLE_FIELDS)
+    created_ids: List[int] = []
+    updated_ids: List[int] = []
+
+    cursor = connection.cursor()
+    try:
+        for values in prepared_creates:
+            cursor.execute(
+                f"INSERT INTO {_table_sql()} ({insert_columns}) "
+                f"VALUES ({insert_placeholders})",
+                [values[field] for field in EDITABLE_FIELDS],
+            )
+            cursor.execute("SELECT CAST(SCOPE_IDENTITY() AS INT)")
+            inserted_row = cursor.fetchone()
+            if not inserted_row:
+                raise RuntimeError("Gagal mendapatkan ID hasil insert")
+            created_ids.append(int(inserted_row[0]))
+
+        for record_id, values in prepared_updates:
+            assignments = ", ".join(
+                f"{_column_sql(field)} = ?" for field in values.keys()
+            )
+            cursor.execute(
+                f"UPDATE {_table_sql()} SET {assignments} WHERE [id] = ?",
+                [*values.values(), record_id],
+            )
+            updated_ids.append(record_id)
+
+        connection.commit()
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        cursor.close()
+
+    return {
+        "created_count": len(created_ids),
+        "created_ids": created_ids,
         "updated_count": len(updated_ids),
         "updated_ids": updated_ids,
     }
