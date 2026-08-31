@@ -22,6 +22,7 @@ import Index from "./pages/Index";
 import ArtbstPage from "./pages/metadata/ArtbstPage";
 import OdistsParsingPage from "./pages/metadata/OdistsParsingPage";
 import ProdukDistributorPage from "./pages/metadata/ProdukDistributorPage";
+import ActivityReportPage from "./pages/reports/ActivityReportPage";
 import ParsingReportPage from "./pages/reports/ParsingReportPage";
 import UsersPage from "./pages/admin/UsersPage";
 
@@ -34,6 +35,7 @@ const PROTECTED_PATHS = [
   "/metadata/produk-distributor",
   "/metadata/artbst",
   "/reports/parsing",
+  "/reports/activity",
   "/admin/users",
 ] as const;
 
@@ -68,7 +70,8 @@ function PersistentProtectedPages() {
 
   if (
     (location.pathname === "/metadata/produk-distributor" ||
-      location.pathname === "/metadata/artbst") &&
+      location.pathname === "/metadata/artbst" ||
+      location.pathname === "/reports/activity") &&
     user?.role === "INTERN"
   ) {
     return <Navigate to={DEFAULT_PROTECTED_PATH} replace />;
@@ -114,6 +117,14 @@ function PersistentProtectedPages() {
           aria-hidden={activePath !== "/reports/parsing"}
         >
           <ParsingReportPage />
+        </div>
+      )}
+      {user?.role !== "INTERN" && shouldRender("/reports/activity") && (
+        <div
+          hidden={activePath !== "/reports/activity"}
+          aria-hidden={activePath !== "/reports/activity"}
+        >
+          <ActivityReportPage />
         </div>
       )}
       {shouldRender("/admin/users") && (
