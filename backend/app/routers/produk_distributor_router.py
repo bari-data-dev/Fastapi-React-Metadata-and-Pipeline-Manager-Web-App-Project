@@ -17,6 +17,7 @@ from app.schemas.produk_distributor import (
     ProdukDistributorSaveResult,
     ProdukDistributorUpdateRequest,
 )
+from app.services import produk_distributor_commit_service
 from app.services import produk_distributor_service
 from app.types import ApiResponse
 
@@ -117,17 +118,19 @@ def save_produk_distributor_changes(
     _: AppUser = Depends(get_current_user),
 ):
     try:
-        result = produk_distributor_service.save_changes(
+        result = produk_distributor_commit_service.save_changes(
             crm_connection,
             [item.dict() for item in payload.creates],
             [item.dict() for item in payload.updates],
+            payload.deletes,
         )
         return ApiResponse(
             success=True,
             data=ProdukDistributorSaveResult(**result),
             message=(
-                f"{result['created_count']} row ditambahkan dan "
-                f"{result['updated_count']} row diperbarui"
+                f"{result['created_count']} row ditambahkan, "
+                f"{result['updated_count']} row diperbarui, dan "
+                f"{result['deleted_count']} row dihapus"
             ),
         )
     except Exception as exc:
