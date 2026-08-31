@@ -98,6 +98,13 @@ export type ProdukDistributorBatchUpdateResult = {
   updated_ids: number[];
 };
 
+export type ProdukDistributorSaveResult = {
+  created_count: number;
+  created_ids: number[];
+  updated_count: number;
+  updated_ids: number[];
+};
+
 export type ParsingMemberOption = {
   user_id: number | null;
   member_name: string;
@@ -334,6 +341,14 @@ export const produkDistributorApi = {
     appFetch<ProdukDistributorRecord>("/produk-distributor", {
       method: "POST",
       body: JSON.stringify(payload),
+    }),
+  saveChanges: (
+    creates: ProdukDistributorCreateInput[],
+    updates: ProdukDistributorBatchUpdateItem[]
+  ) =>
+    appFetch<ProdukDistributorSaveResult>("/produk-distributor/save", {
+      method: "POST",
+      body: JSON.stringify({ creates, updates }),
     }),
   update: (id: number, values: Record<string, unknown>) =>
     appFetch<ProdukDistributorRecord>(`/produk-distributor/${id}`, {
