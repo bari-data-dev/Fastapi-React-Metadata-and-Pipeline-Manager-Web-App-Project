@@ -1,11 +1,13 @@
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
+  Banknote,
   BarChart3,
   ChevronLeft,
   ChevronRight,
   Database,
   FileBarChart2,
   LogOut,
+  Pill,
   TableProperties,
   Users,
 } from "lucide-react";
@@ -47,12 +49,12 @@ export function AppSidebar() {
           {
             title: "Produk Distributor",
             url: "/metadata/produk-distributor",
-            icon: Database,
+            icon: Pill,
           },
           {
             title: "ARTBST",
             url: "/metadata/artbst",
-            icon: TableProperties,
+            icon: Banknote,
           },
         ]
       : []),
