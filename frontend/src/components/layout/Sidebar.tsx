@@ -34,7 +34,7 @@ export function AppSidebar() {
   const collapsed = !isMobile && state === "collapsed";
   const canViewUsers =
     user?.role === "ADMIN" || user?.role === "MANAGER" || user?.role === "TEAM";
-  const canViewProdukDistributor = user?.role !== "INTERN";
+  const canViewMasterData = user?.role !== "INTERN";
 
   const items = [
     {
@@ -42,12 +42,17 @@ export function AppSidebar() {
       url: "/metadata/odists-parsing",
       icon: TableProperties,
     },
-    ...(canViewProdukDistributor
+    ...(canViewMasterData
       ? [
           {
             title: "Produk Distributor",
             url: "/metadata/produk-distributor",
             icon: Database,
+          },
+          {
+            title: "ARTBST",
+            url: "/metadata/artbst",
+            icon: TableProperties,
           },
         ]
       : []),
