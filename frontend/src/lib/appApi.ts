@@ -6,11 +6,7 @@ export type ApiResponse<T> = {
   message?: string | null;
 };
 
-export type AppRole =
-  | "ADMIN"
-  | "PARSER-TEAM"
-  | "PARSER-INTERN"
-  | "MANAGER";
+export type AppRole = "ADMIN" | "TEAM" | "MANAGER" | "INTERN";
 
 export type AppUser = {
   user_id: number;
@@ -75,6 +71,10 @@ export type ProdukDistributorRecord = {
   Nama_Produk_Dist?: string | null;
   Produk_Paket?: number | null;
   temp?: string | null;
+  dwh_created_by?: string | null;
+  dwh_updated_by?: string | null;
+  dwh_created_at?: string | null;
+  dwh_updated_at?: string | null;
 };
 
 export type ProdukDistributorPage = {
@@ -86,7 +86,10 @@ export type ProdukDistributorPage = {
   columns: ProdukDistributorColumn[];
 };
 
-export type ProdukDistributorCreateInput = Omit<ProdukDistributorRecord, "id">;
+export type ProdukDistributorCreateInput = Omit<
+  ProdukDistributorRecord,
+  "id" | "dwh_created_by" | "dwh_updated_by" | "dwh_created_at" | "dwh_updated_at"
+>;
 
 export type ProdukDistributorBatchUpdateItem = {
   id: number;
@@ -103,6 +106,8 @@ export type ProdukDistributorSaveResult = {
   created_ids: number[];
   updated_count: number;
   updated_ids: number[];
+  deleted_count: number;
+  deleted_ids: number[];
 };
 
 export type ParsingMemberOption = {
@@ -344,11 +349,12 @@ export const produkDistributorApi = {
     }),
   saveChanges: (
     creates: ProdukDistributorCreateInput[],
-    updates: ProdukDistributorBatchUpdateItem[]
+    updates: ProdukDistributorBatchUpdateItem[],
+    deletes: number[] = []
   ) =>
     appFetch<ProdukDistributorSaveResult>("/produk-distributor/save", {
       method: "POST",
-      body: JSON.stringify({ creates, updates }),
+      body: JSON.stringify({ creates, updates, deletes }),
     }),
   update: (id: number, values: Record<string, unknown>) =>
     appFetch<ProdukDistributorRecord>(`/produk-distributor/${id}`, {
