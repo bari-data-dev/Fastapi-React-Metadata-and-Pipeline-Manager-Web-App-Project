@@ -198,6 +198,23 @@ function replaceOdistHelpText() {
   );
 }
 
+function replaceProdukDistributorLabels() {
+  if (window.location.pathname !== "/metadata/produk-distributor") return;
+
+  Array.from(document.querySelectorAll<HTMLElement>("button")).forEach(
+    (element) => {
+      if (normalizedText(element) === "NAME DIST") {
+        element.textContent = "NAMA DIST";
+      }
+    }
+  );
+}
+
+function applyTextEnhancements() {
+  replaceOdistHelpText();
+  replaceProdukDistributorLabels();
+}
+
 function isMainOdistTableContainer(element: HTMLElement) {
   const className = element.className;
   return (
@@ -327,8 +344,8 @@ export function InteractionEnhancements() {
       event.stopPropagation();
     };
 
-    replaceOdistHelpText();
-    const textObserver = new MutationObserver(replaceOdistHelpText);
+    applyTextEnhancements();
+    const textObserver = new MutationObserver(applyTextEnhancements);
     textObserver.observe(document.body, {
       childList: true,
       subtree: true,
