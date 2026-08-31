@@ -19,6 +19,7 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import LoginPage from "./pages/LoginPage";
 import Index from "./pages/Index";
+import ArtbstPage from "./pages/metadata/ArtbstPage";
 import OdistsParsingPage from "./pages/metadata/OdistsParsingPage";
 import ProdukDistributorPage from "./pages/metadata/ProdukDistributorPage";
 import ParsingReportPage from "./pages/reports/ParsingReportPage";
@@ -31,6 +32,7 @@ const PROTECTED_PATHS = [
   "/",
   "/metadata/odists-parsing",
   "/metadata/produk-distributor",
+  "/metadata/artbst",
   "/reports/parsing",
   "/admin/users",
 ] as const;
@@ -65,7 +67,8 @@ function PersistentProtectedPages() {
   }
 
   if (
-    location.pathname === "/metadata/produk-distributor" &&
+    (location.pathname === "/metadata/produk-distributor" ||
+      location.pathname === "/metadata/artbst") &&
     user?.role === "INTERN"
   ) {
     return <Navigate to={DEFAULT_PROTECTED_PATH} replace />;
@@ -95,6 +98,14 @@ function PersistentProtectedPages() {
           aria-hidden={activePath !== "/metadata/produk-distributor"}
         >
           <ProdukDistributorPage />
+        </div>
+      )}
+      {user?.role !== "INTERN" && shouldRender("/metadata/artbst") && (
+        <div
+          hidden={activePath !== "/metadata/artbst"}
+          aria-hidden={activePath !== "/metadata/artbst"}
+        >
+          <ArtbstPage />
         </div>
       )}
       {shouldRender("/reports/parsing") && (
