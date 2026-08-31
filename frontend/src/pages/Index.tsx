@@ -1,6 +1,9 @@
 import {
   ArrowRight,
+  Banknote,
   Database,
+  History,
+  Pill,
   ShieldCheck,
   TableProperties,
   Users,
@@ -36,16 +39,16 @@ const Index = () => {
   const features: HomeFeature[] = [
     {
       icon: TableProperties,
-      title: "ODIST Parsing",
+      title: "Outlet Distributor Parsing",
       description:
-        "Review dan perbarui data ODIST langsung melalui grid dengan filter, choose value, dan audit perubahan.",
-      actionLabel: "Buka ODIST Parsing",
+        "Review dan perbarui data outlet distributor langsung melalui grid dengan filter, choose value, dan audit perubahan.",
+      actionLabel: "Buka Outlet Distributor Parsing",
       actionTo: "/metadata/odists-parsing",
     },
     ...(canViewMasterData
       ? [
           {
-            icon: Database,
+            icon: Pill,
             title: "Produk Distributor",
             description:
               "Kelola master bronze_so.Produk_Distributor dengan filter, sorting, insert, edit, duplicate, dan delete langsung dari aplikasi.",
@@ -53,12 +56,20 @@ const Index = () => {
             actionTo: "/metadata/produk-distributor",
           } satisfies HomeFeature,
           {
-            icon: TableProperties,
+            icon: Banknote,
             title: "ARTBST",
             description:
-              "Kelola product master bronze_so.ARTBST dengan filter, sorting, insert, edit, duplicate, dan delete langsung dari aplikasi.",
+              "Kelola product master bronze_so.ARTBST termasuk conversion dan price dengan filter, sorting, insert, edit, duplicate, dan delete.",
             actionLabel: "Buka ARTBST",
             actionTo: "/metadata/artbst",
+          } satisfies HomeFeature,
+          {
+            icon: History,
+            title: "Activity Report",
+            description:
+              "Lihat history insert, update, dan delete master data lengkap dengan user, waktu, record, serta nilai sebelum dan sesudah perubahan.",
+            actionLabel: "Buka Activity Report",
+            actionTo: "/reports/activity",
           } satisfies HomeFeature,
         ]
       : []),
@@ -80,11 +91,11 @@ const Index = () => {
       : []),
     {
       icon: ShieldCheck,
-      title: "Audit Perubahan",
+      title: "Audit Parsing",
       description:
         user?.role === "INTERN"
-          ? "Lihat effective result dan activity history milik akun Anda sendiri."
-          : "Setiap perubahan ODIST dicatat bersama user, field, nilai lama, nilai baru, dan waktu perubahan data.",
+          ? "Lihat effective result dan activity history parsing milik akun Anda sendiri."
+          : "Lihat audit perubahan Outlet Distributor Parsing bersama user, field, nilai lama, nilai baru, dan waktu perubahan data.",
       actionLabel: "Buka Parsing Report",
       actionTo: "/reports/parsing",
     },
