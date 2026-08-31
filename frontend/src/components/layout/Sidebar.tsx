@@ -43,6 +43,11 @@ export function AppSidebar() {
       url: "/metadata/odists-parsing",
       icon: TableProperties,
     },
+    {
+      title: "Produk Distributor",
+      url: "/metadata/produk-distributor",
+      icon: Database,
+    },
     ...(canViewUsers
       ? [{ title: "User Management", url: "/admin/users", icon: Users }]
       : []),
