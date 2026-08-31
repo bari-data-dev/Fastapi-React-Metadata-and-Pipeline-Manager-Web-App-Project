@@ -30,31 +30,37 @@ import { cn } from "@/lib/utils";
 type SelectedValue = string | number | null;
 type DraftValues = Record<string, unknown>;
 
+const DISPLAY_COLUMN_ORDER = [
+  "id",
+  "Kode_Dist",
+  "temp",
+  "Kode_Produk_Dist",
+  "Kode_Produk_GPL",
+  "Nama_Produk_GPL",
+  "Nama_Produk_Dist",
+];
+
 const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
   id: 100,
   Kode_Dist: 140,
+  temp: 240,
   Kode_Produk_Dist: 220,
   Kode_Produk_GPL: 170,
-  Konversi_Unit: 150,
   Nama_Produk_GPL: 330,
   Nama_Produk_Dist: 330,
-  Produk_Paket: 140,
-  temp: 240,
 };
 
 const MIN_COLUMN_WIDTH = 100;
 const MAX_COLUMN_WIDTH = 700;
-const ACTION_WIDTH = 110;
+const ACTION_WIDTH = 64;
 
 const EMPTY_INSERT: Record<string, string> = {
   Kode_Dist: "",
+  temp: "",
   Kode_Produk_Dist: "",
   Kode_Produk_GPL: "",
-  Konversi_Unit: "",
   Nama_Produk_GPL: "",
   Nama_Produk_Dist: "",
-  Produk_Paket: "",
-  temp: "",
 };
 
 function valueKey(value: SelectedValue) {
@@ -82,19 +88,25 @@ function displayValue(value: unknown) {
   return String(value);
 }
 
+function displayColumnLabel(
+  column: ProdukDistributorColumn | undefined,
+  field: string
+) {
+  if (field === "temp") return "NAME DIST";
+  return column?.label || field.replace(/_/g, " ").toUpperCase();
+}
+
 function insertPayload(values: Record<string, string>): ProdukDistributorCreateInput {
   const optionalString = (value: string) => (value === "" ? null : value);
-  const optionalInteger = (value: string) =>
-    value === "" ? null : Number.parseInt(value, 10);
 
   return {
     Kode_Dist: values.Kode_Dist,
     Kode_Produk_Dist: values.Kode_Produk_Dist,
     Kode_Produk_GPL: optionalString(values.Kode_Produk_GPL),
-    Konversi_Unit: optionalInteger(values.Konversi_Unit),
+    Konversi_Unit: null,
     Nama_Produk_GPL: optionalString(values.Nama_Produk_GPL),
     Nama_Produk_Dist: optionalString(values.Nama_Produk_Dist),
-    Produk_Paket: optionalInteger(values.Produk_Paket),
+    Produk_Paket: null,
     temp: optionalString(values.temp),
   };
 }
@@ -190,10 +202,17 @@ export default function ProdukDistributorPage() {
     };
   }, [valuePickerField, valuePickerSearch, JSON.stringify(appliedFilters)]);
 
-  const columns = data?.columns || [];
+  const allColumns = data?.columns || [];
   const columnMap = useMemo(
-    () => new Map(columns.map((column) => [column.name, column])),
-    [columns]
+    () => new Map(allColumns.map((column) => [column.name, column])),
+    [allColumns]
+  );
+  const columns = useMemo(
+    () =>
+      DISPLAY_COLUMN_ORDER.map((name) => columnMap.get(name)).filter(
+        (column): column is ProdukDistributorColumn => Boolean(column)
+      ),
+    [columnMap]
   );
 
   const activeFilterCount = Object.keys(appliedFilters).length;
@@ -285,7 +304,10 @@ export default function ProdukDistributorPage() {
 
     Object.entries(draft).forEach(([field, value]) => {
       const original = row[field as keyof ProdukDistributorRecord];
-      if (String(normalizedValue(value) ?? "") !== String(normalizedValue(original) ?? "")) {
+      if (
+        String(normalizedValue(value) ?? "") !==
+        String(normalizedValue(original) ?? "")
+      ) {
         changed[field] = normalizedValue(value);
       }
     });
@@ -356,7 +378,9 @@ export default function ProdukDistributorPage() {
       setSortDir("desc");
       setPage(1);
       await load();
-      setSuccessMessage(`Produk Distributor ID ${response.data.id} berhasil ditambahkan.`);
+      setSuccessMessage(
+        `Produk Distributor ID ${response.data.id} berhasil ditambahkan.`
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Insert Produk Distributor gagal");
     } finally {
@@ -442,9 +466,7 @@ export default function ProdukDistributorPage() {
       column.name in (draftRows[rowId(row)] || {}) &&
       String(normalizedValue(value) ?? "") !==
         String(
-          normalizedValue(
-            row[column.name as keyof ProdukDistributorRecord]
-          ) ?? ""
+          normalizedValue(row[column.name as keyof ProdukDistributorRecord]) ?? ""
         );
 
     if (!column.editable) {
@@ -454,7 +476,10 @@ export default function ProdukDistributorPage() {
           className="sticky left-0 z-10 overflow-hidden border-b bg-background p-2 align-top"
           style={{ width: getColumnWidth(column.name) }}
         >
-          <div className="truncate whitespace-nowrap" title={String(value ?? "NULL")}>
+          <div
+            className="truncate whitespace-nowrap"
+            title={String(value ?? "NULL")}
+          >
             {displayValue(value)}
           </div>
           {Object.keys(getChangedValues(row)).length > 0 && (
@@ -572,7 +597,7 @@ export default function ProdukDistributorPage() {
             </span>
           </div>
 
-          <div className="max-h-[68vh] w-full overflow-auto overscroll-contain rounded-md border">
+          <div className="max-h-[62dvh] w-full touch-auto overflow-auto overscroll-contain rounded-md border sm:max-h-[68vh]">
             <table
               className="border-collapse text-sm"
               style={{ tableLayout: "fixed", width: totalTableWidth }}
@@ -592,6 +617,7 @@ export default function ProdukDistributorPage() {
                     const chosenCount = parseSelectedValues(
                       appliedFilters[column.name]
                     ).length;
+                    const label = displayColumnLabel(column, column.name);
                     return (
                       <th
                         key={column.name}
@@ -608,7 +634,7 @@ export default function ProdukDistributorPage() {
                             className="min-w-0 flex-1 truncate text-left text-xs font-semibold tracking-wide"
                             onClick={() => toggleSort(column.name)}
                           >
-                            {column.label}
+                            {label}
                             {sortBy === column.name
                               ? sortDir === "asc"
                                 ? " ▲"
@@ -620,7 +646,7 @@ export default function ProdukDistributorPage() {
                             size="sm"
                             variant={chosenCount ? "default" : "outline"}
                             className="h-7 w-7 shrink-0 p-0"
-                            title={`Filter ${column.label}`}
+                            title={`Filter ${label}`}
                             onClick={() => openValuePicker(column.name)}
                           >
                             <Filter className="h-3.5 w-3.5" />
@@ -655,12 +681,13 @@ export default function ProdukDistributorPage() {
                         <Button
                           variant="destructive"
                           size="sm"
-                          className="h-8 px-2"
+                          className="h-8 w-8 p-0"
+                          title={`Delete ID ${row.id}`}
+                          aria-label={`Delete Produk Distributor ID ${row.id}`}
                           onClick={() => setDeleteTarget(row)}
                           disabled={batchSaving || deleteSaving}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
-                          Delete
                         </Button>
                       </td>
                     </tr>
@@ -740,15 +767,15 @@ export default function ProdukDistributorPage() {
                   {Object.keys(EMPTY_INSERT).map((field) => {
                     const column = columnMap.get(field);
                     const required = !column?.is_nullable;
-                    const integerField = column?.data_type === "int";
+                    const label = displayColumnLabel(column, field);
                     return (
                       <label key={field} className="space-y-1.5">
                         <span className="text-xs font-semibold">
-                          {(column?.label || field.replace(/_/g, " ").toUpperCase())}
+                          {label}
                           {required ? " *" : ""}
                         </span>
                         <Input
-                          type={integerField ? "number" : "text"}
+                          type="text"
                           value={insertValues[field]}
                           maxLength={column?.max_length || undefined}
                           onChange={(event) =>
@@ -788,13 +815,26 @@ export default function ProdukDistributorPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="rounded-md border bg-muted/30 p-3 text-sm">
-                <div><strong>ID:</strong> {deleteTarget.id}</div>
-                <div><strong>Kode Dist:</strong> {deleteTarget.Kode_Dist}</div>
-                <div><strong>Kode Produk Dist:</strong> {deleteTarget.Kode_Produk_Dist}</div>
-                <div><strong>Nama Produk Dist:</strong> {deleteTarget.Nama_Produk_Dist || "NULL"}</div>
+                <div>
+                  <strong>ID:</strong> {deleteTarget.id}
+                </div>
+                <div>
+                  <strong>Kode Dist:</strong> {deleteTarget.Kode_Dist}
+                </div>
+                <div>
+                  <strong>Name Dist:</strong> {deleteTarget.temp || "NULL"}
+                </div>
+                <div>
+                  <strong>Kode Produk Dist:</strong> {deleteTarget.Kode_Produk_Dist}
+                </div>
+                <div>
+                  <strong>Nama Produk Dist:</strong>{" "}
+                  {deleteTarget.Nama_Produk_Dist || "NULL"}
+                </div>
               </div>
               <p className="text-destructive">
-                Data akan dihapus langsung dari CRM.dbo.Produk_Distributor dan tidak dapat di-undo dari aplikasi.
+                Data akan dihapus langsung dari CRM.dbo.Produk_Distributor dan tidak
+                dapat di-undo dari aplikasi.
               </p>
               <div className="flex justify-end gap-2">
                 <Button
@@ -823,7 +863,11 @@ export default function ProdukDistributorPage() {
             <Card className="flex h-[100dvh] max-h-[100dvh] w-full max-w-2xl flex-col overflow-hidden rounded-none sm:h-[min(760px,calc(100vh-3rem))] sm:rounded-xl">
               <CardHeader className="shrink-0 border-b">
                 <CardTitle>
-                  FILTER BY VALUE: {columnMap.get(valuePickerField)?.label || valuePickerField}
+                  FILTER BY VALUE:{" "}
+                  {displayColumnLabel(
+                    columnMap.get(valuePickerField),
+                    valuePickerField
+                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent className="flex min-h-0 flex-1 flex-col p-0">
@@ -876,7 +920,9 @@ export default function ProdukDistributorPage() {
                                 </td>
                                 <td className="break-words border-b p-3">
                                   {value === null ? (
-                                    <span className="italic text-muted-foreground">NULL</span>
+                                    <span className="italic text-muted-foreground">
+                                      NULL
+                                    </span>
                                   ) : (
                                     String(value)
                                   )}
@@ -889,7 +935,10 @@ export default function ProdukDistributorPage() {
                           })
                         ) : (
                           <tr>
-                            <td colSpan={3} className="p-6 text-center text-muted-foreground">
+                            <td
+                              colSpan={3}
+                              className="p-6 text-center text-muted-foreground"
+                            >
                               Value tidak ditemukan.
                             </td>
                           </tr>
@@ -900,7 +949,10 @@ export default function ProdukDistributorPage() {
                 </div>
 
                 <div className="flex justify-end gap-2 border-t p-4 sm:px-6">
-                  <Button variant="outline" onClick={() => setValuePickerField(null)}>
+                  <Button
+                    variant="outline"
+                    onClick={() => setValuePickerField(null)}
+                  >
                     Cancel
                   </Button>
                   <Button onClick={applySelectedValues}>OK</Button>
