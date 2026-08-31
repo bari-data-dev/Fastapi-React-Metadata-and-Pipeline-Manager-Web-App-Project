@@ -624,7 +624,7 @@ export default function ProdukDistributorPage() {
     return (
       <td
         key={column.name}
-        className="border-b border-amber-300 bg-amber-100 p-1 align-top dark:border-amber-800 dark:bg-amber-950/60"
+        className="border-b border-amber-300 bg-amber-100 p-2 align-middle dark:border-amber-800 dark:bg-amber-950/60"
         style={{ width: getColumnWidth(column.name) }}
       >
         <Input
@@ -805,12 +805,12 @@ export default function ProdukDistributorPage() {
                     className="bg-amber-100 dark:bg-amber-950/60"
                   >
                     {columns.map((column) => renderInsertCell(row, column))}
-                    <td className="sticky right-0 border-b border-amber-300 bg-amber-100 p-2 text-center dark:border-amber-800 dark:bg-amber-950/60">
+                    <td className="sticky right-0 border-b border-amber-300 bg-amber-100 p-2 text-center align-middle dark:border-amber-800 dark:bg-amber-950/60">
                       <div className="flex items-center justify-center gap-1">
                         <Button
                           variant="outline"
                           size="sm"
-                          className="h-8 w-8 border-amber-400 bg-amber-50 p-0 dark:border-amber-700 dark:bg-amber-950/40"
+                          className="h-8 w-8 border-emerald-500 bg-emerald-100 p-0 text-emerald-700 hover:bg-emerald-200 hover:text-emerald-800 dark:border-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 dark:hover:bg-emerald-900/70"
                           title="Duplicate row baru"
                           aria-label="Duplicate row baru"
                           onClick={() => duplicateInsertRow(row)}
@@ -858,7 +858,7 @@ export default function ProdukDistributorPage() {
                             <Button
                               variant="outline"
                               size="sm"
-                              className="h-8 w-8 p-0 no-underline"
+                              className="h-8 w-8 border-emerald-500 bg-emerald-100 p-0 text-emerald-700 no-underline hover:bg-emerald-200 hover:text-emerald-800 dark:border-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 dark:hover:bg-emerald-900/70"
                               title={`Duplicate ID ${row.id}`}
                               aria-label={`Duplicate Produk Distributor ID ${row.id}`}
                               onClick={() => duplicateExistingRow(row)}
