@@ -463,7 +463,7 @@ export default function OdistsParsingPage() {
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-xl font-bold sm:text-2xl">ODIST Parsing</h1>
+          <h1 className="text-xl font-bold sm:text-2xl">Outlet Distributor Parsing</h1>
           <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
             <span className="sm:hidden">
               Edit beberapa data lalu gunakan Save All.
