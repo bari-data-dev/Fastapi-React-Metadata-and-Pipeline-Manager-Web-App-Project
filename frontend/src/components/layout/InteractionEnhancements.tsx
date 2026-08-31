@@ -83,6 +83,17 @@ function findBatchActionButton(): HTMLButtonElement | null {
   );
 }
 
+function findConfirmSaveButton(): HTMLButtonElement | null {
+  return (
+    Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find(
+      (button) =>
+        isVisible(button) &&
+        !button.disabled &&
+        /^Save \d+ Rows$/.test(normalizedText(button))
+    ) || null
+  );
+}
+
 function setControlValue(
   control: HTMLInputElement | HTMLSelectElement,
   value: string
@@ -161,7 +172,8 @@ function resetFiltersForActivePage() {
 
   if (
     pathname === "/metadata/odists-parsing" ||
-    pathname === "/metadata/produk-distributor"
+    pathname === "/metadata/produk-distributor" ||
+    pathname === "/metadata/artbst"
   ) {
     findVisibleButtonByText("Reset Filter")?.click();
     return true;
@@ -234,6 +246,27 @@ export function InteractionEnhancements() {
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      const pathname = window.location.pathname;
+      const isMetadataEditor =
+        pathname === "/metadata/odists-parsing" ||
+        pathname === "/metadata/produk-distributor" ||
+        pathname === "/metadata/artbst";
+
+      if (
+        event.key === "Enter" &&
+        isMetadataEditor &&
+        !isValueFilterModalOpen()
+      ) {
+        const confirmButton = findConfirmSaveButton();
+        if (confirmButton) {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          confirmButton.click();
+          return;
+        }
+      }
+
       const hasCommandModifier = event.ctrlKey || event.metaKey;
       if (!hasCommandModifier) return;
 
@@ -246,14 +279,7 @@ export function InteractionEnhancements() {
         return;
       }
 
-      if (key !== "s") return;
-      const pathname = window.location.pathname;
-      if (
-        pathname !== "/metadata/odists-parsing" &&
-        pathname !== "/metadata/produk-distributor"
-      ) {
-        return;
-      }
+      if (key !== "s" || !isMetadataEditor) return;
 
       event.preventDefault();
       event.stopPropagation();
