@@ -80,6 +80,12 @@ const DISPLAY_COLUMN_ORDER = [
 ];
 
 const EDITABLE_FIELDS = ["artcode", "oms30_0", "u_konversi", "verkp_verp"];
+const REQUIRED_INSERT_FIELDS: Array<{ field: string; label: string }> = [
+  { field: "artcode", label: "Prod Code" },
+  { field: "oms30_0", label: "Prod Name" },
+  { field: "u_konversi", label: "CRT" },
+  { field: "verkp_verp", label: "Price" },
+];
 const DATE_FIELDS = new Set(["dwh_created_at", "dwh_updated_at"]);
 const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
   id: 90,
@@ -356,10 +362,10 @@ export default function ArtbstPage() {
     .filter((item) => Object.keys(item.values).length > 0);
 
   const pendingCreates = insertRows.map((row) => ({
-    artcode: normalizedValue(row.values.artcode),
-    oms30_0: normalizedValue(row.values.oms30_0),
-    u_konversi: normalizedValue(row.values.u_konversi),
-    verkp_verp: normalizedValue(row.values.verkp_verp),
+    artcode: row.values.artcode.trim(),
+    oms30_0: row.values.oms30_0.trim(),
+    u_konversi: Number(row.values.u_konversi),
+    verkp_verp: Number(row.values.verkp_verp),
   }));
 
   const dirtyRowCount = pendingUpdates.length + pendingCreates.length + pendingDeleteIds.length;
@@ -415,14 +421,41 @@ export default function ArtbstPage() {
     setSuccessMessage("");
   };
 
+  const validateInsertRows = () => {
+    for (let index = 0; index < insertRows.length; index += 1) {
+      const row = insertRows[index];
+      for (const required of REQUIRED_INSERT_FIELDS) {
+        if (!String(row.values[required.field] ?? "").trim()) {
+          setError(`Row baru ${index + 1}: ${required.label} wajib diisi.`);
+          return false;
+        }
+      }
+
+      const crt = Number(row.values.u_konversi);
+      if (!Number.isFinite(crt)) {
+        setError(`Row baru ${index + 1}: CRT harus berupa angka.`);
+        return false;
+      }
+
+      const price = Number(row.values.verkp_verp);
+      if (!Number.isFinite(price)) {
+        setError(`Row baru ${index + 1}: Price harus berupa angka.`);
+        return false;
+      }
+    }
+    return true;
+  };
+
   const requestBatchSave = () => {
     if (!dirtyRowCount || batchSaving) return;
+    if (!validateInsertRows()) return;
     setError("");
     setBatchConfirmOpen(true);
   };
 
   const saveAllChanges = async () => {
     if (!dirtyRowCount || batchSaving) return;
+    if (!validateInsertRows()) return;
     setBatchSaving(true);
     setError("");
     setSuccessMessage("");
@@ -488,6 +521,17 @@ export default function ArtbstPage() {
   };
 
   const handlePageKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (
+      event.key === "Enter" &&
+      batchConfirmOpen &&
+      !valuePickerField
+    ) {
+      event.preventDefault();
+      event.stopPropagation();
+      void saveAllChanges();
+      return;
+    }
+
     const command = event.ctrlKey || event.metaKey;
     if (!command) return;
     const key = event.key.toLowerCase();
@@ -498,7 +542,7 @@ export default function ArtbstPage() {
       setPage(1);
       return;
     }
-    if (key === "s" || event.key === "Enter") {
+    if (key === "s") {
       event.preventDefault();
       event.stopPropagation();
       if (valuePickerField) return;
@@ -608,6 +652,7 @@ export default function ArtbstPage() {
         <Input
           autoFocus={column.name === "artcode"}
           type="text"
+          inputMode={column.name === "u_konversi" || column.name === "verkp_verp" ? "decimal" : undefined}
           className="h-8 w-full min-w-0 border-amber-300 bg-amber-50 px-2 text-sm dark:border-amber-800 dark:bg-amber-950/40"
           value={row.values[column.name] ?? ""}
           maxLength={column.max_length || undefined}
@@ -873,6 +918,7 @@ export default function ArtbstPage() {
               </div>
               <p className="text-xs text-muted-foreground">
                 Semua insert, update, dan delete akan disimpan dalam satu transaksi.
+                Tekan Enter untuk menyimpan.
               </p>
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setBatchConfirmOpen(false)} disabled={batchSaving}>
