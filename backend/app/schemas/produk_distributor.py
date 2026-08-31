@@ -65,6 +65,7 @@ class ProdukDistributorBatchUpdateResult(BaseModel):
 class ProdukDistributorSaveRequest(BaseModel):
     creates: List[ProdukDistributorCreate] = Field(default_factory=list)
     updates: List[ProdukDistributorBatchUpdateItem] = Field(default_factory=list)
+    deletes: List[int] = Field(default_factory=list)
 
 
 class ProdukDistributorSaveResult(BaseModel):
@@ -72,6 +73,8 @@ class ProdukDistributorSaveResult(BaseModel):
     created_ids: List[int]
     updated_count: int
     updated_ids: List[int]
+    deleted_count: int
+    deleted_ids: List[int]
 
 
 class ProdukDistributorDeleteResult(BaseModel):
