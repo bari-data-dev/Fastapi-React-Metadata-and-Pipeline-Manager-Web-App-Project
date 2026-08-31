@@ -13,6 +13,8 @@ from app.schemas.produk_distributor import (
     ProdukDistributorDeleteResult,
     ProdukDistributorPage,
     ProdukDistributorRecord,
+    ProdukDistributorSaveRequest,
+    ProdukDistributorSaveResult,
     ProdukDistributorUpdateRequest,
 )
 from app.services import produk_distributor_service
@@ -103,6 +105,30 @@ def create_produk_distributor(
             success=True,
             data=ProdukDistributorRecord(**created),
             message="Produk Distributor berhasil ditambahkan",
+        )
+    except Exception as exc:
+        _handle_crm_error(exc)
+
+
+@router.post("/save", response_model=ApiResponse[ProdukDistributorSaveResult])
+def save_produk_distributor_changes(
+    payload: ProdukDistributorSaveRequest,
+    crm_connection: Any = Depends(get_crm_connection),
+    _: AppUser = Depends(get_current_user),
+):
+    try:
+        result = produk_distributor_service.save_changes(
+            crm_connection,
+            [item.dict() for item in payload.creates],
+            [item.dict() for item in payload.updates],
+        )
+        return ApiResponse(
+            success=True,
+            data=ProdukDistributorSaveResult(**result),
+            message=(
+                f"{result['created_count']} row ditambahkan dan "
+                f"{result['updated_count']} row diperbarui"
+            ),
         )
     except Exception as exc:
         _handle_crm_error(exc)
