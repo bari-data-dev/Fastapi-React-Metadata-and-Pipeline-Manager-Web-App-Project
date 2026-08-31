@@ -31,7 +31,7 @@ const Index = () => {
     user?.role === "ADMIN" ||
     user?.role === "MANAGER" ||
     user?.role === "TEAM";
-  const canViewProdukDistributor = user?.role !== "INTERN";
+  const canViewMasterData = user?.role !== "INTERN";
 
   const features: HomeFeature[] = [
     {
@@ -42,7 +42,7 @@ const Index = () => {
       actionLabel: "Buka ODIST Parsing",
       actionTo: "/metadata/odists-parsing",
     },
-    ...(canViewProdukDistributor
+    ...(canViewMasterData
       ? [
           {
             icon: Database,
@@ -51,6 +51,14 @@ const Index = () => {
               "Kelola master bronze_so.Produk_Distributor dengan filter, sorting, insert, edit, duplicate, dan delete langsung dari aplikasi.",
             actionLabel: "Buka Produk Distributor",
             actionTo: "/metadata/produk-distributor",
+          } satisfies HomeFeature,
+          {
+            icon: TableProperties,
+            title: "ARTBST",
+            description:
+              "Kelola product master bronze_so.ARTBST dengan filter, sorting, insert, edit, duplicate, dan delete langsung dari aplikasi.",
+            actionLabel: "Buka ARTBST",
+            actionTo: "/metadata/artbst",
           } satisfies HomeFeature,
         ]
       : []),
