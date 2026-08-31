@@ -101,7 +101,7 @@ def create_produk_distributor(
         created = produk_distributor_service.create_record(
             db,
             payload.dict(),
-            current_user.full_name,
+            current_user,
         )
         return ApiResponse(
             success=True,
@@ -124,7 +124,7 @@ def save_produk_distributor_changes(
             [item.dict() for item in payload.creates],
             [item.dict() for item in payload.updates],
             payload.deletes,
-            current_user.full_name,
+            current_user,
         )
         return ApiResponse(
             success=True,
@@ -149,7 +149,7 @@ def update_produk_distributor_batch(
         result = produk_distributor_service.update_batch(
             db,
             [item.dict() for item in payload.items],
-            current_user.full_name,
+            current_user,
         )
         return ApiResponse(
             success=True,
@@ -172,7 +172,7 @@ def update_produk_distributor(
             db,
             record_id,
             payload.values,
-            current_user.full_name,
+            current_user,
         )
         return ApiResponse(
             success=True,
@@ -187,10 +187,10 @@ def update_produk_distributor(
 def delete_produk_distributor(
     record_id: int,
     db: Session = Depends(get_session),
-    _: AppUser = Depends(produk_distributor_access),
+    current_user: AppUser = Depends(produk_distributor_access),
 ):
     try:
-        result = produk_distributor_service.delete_record(db, record_id)
+        result = produk_distributor_service.delete_record(db, record_id, current_user)
         return ApiResponse(
             success=True,
             data=ProdukDistributorDeleteResult(**result),
