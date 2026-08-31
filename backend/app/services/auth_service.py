@@ -7,11 +7,16 @@ from sqlmodel import Session, select
 from app.core.security import hash_password, verify_password
 from app.models.app_user import AppUser
 from app.schemas.auth import AppUserCreate, AppUserUpdate
+from app.services import activity_audit_service
 
 
 VALID_ROLES = {"ADMIN", "TEAM", "MANAGER", "INTERN"}
 ADMIN_EDIT_FIELDS = {"username", "full_name", "password", "role", "is_active"}
 MANAGER_EDIT_FIELDS = {"is_active"}
+AUDIT_MODULE_KEY = "USER_MANAGEMENT"
+AUDIT_MODULE_LABEL = "User Management"
+AUDIT_TABLE_NAME = "tools.app_users"
+AUDIT_FIELDS = ["username", "full_name", "role", "is_active"]
 
 
 def get_user_by_username(db: Session, username: str) -> AppUser | None:
@@ -54,7 +59,20 @@ def authenticate_user(db: Session, username: str, password: str) -> AppUser:
     return user
 
 
-def create_user(db: Session, payload: AppUserCreate) -> AppUser:
+def _user_snapshot(user: AppUser) -> dict:
+    return {
+        "username": user.username,
+        "full_name": user.full_name,
+        "role": user.role,
+        "is_active": user.is_active,
+    }
+
+
+def _user_label(user: AppUser) -> str:
+    return f"{user.username} | {user.full_name}"
+
+
+def create_user(db: Session, payload: AppUserCreate, actor: AppUser) -> AppUser:
     if get_user_by_username(db, payload.username) is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -68,9 +86,29 @@ def create_user(db: Session, payload: AppUserCreate) -> AppUser:
         is_active=payload.is_active,
         created_at=datetime.now(),
     )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
+    batch_id = activity_audit_service.new_batch_id()
+    try:
+        db.add(user)
+        db.flush()
+        activity_audit_service.record_activity(
+            db,
+            module_key=AUDIT_MODULE_KEY,
+            module_label=AUDIT_MODULE_LABEL,
+            table_name=AUDIT_TABLE_NAME,
+            record_id=user.user_id,
+            record_label=_user_label(user),
+            action=activity_audit_service.ACTION_INSERT,
+            current_user=actor,
+            changed_fields=AUDIT_FIELDS,
+            old_values={},
+            new_values=_user_snapshot(user),
+            batch_id=batch_id,
+        )
+        db.commit()
+        db.refresh(user)
+    except Exception:
+        db.rollback()
+        raise
     return user
 
 
@@ -122,6 +160,8 @@ def update_user(
         )
 
     _validate_actor_permissions(actor, update_data)
+    old_snapshot = _user_snapshot(user)
+    password_requested = "password" in update_data and update_data.get("password") is not None
 
     next_role = update_data.get("role", user.role)
     next_is_active = update_data.get("is_active", user.is_active)
@@ -173,8 +213,42 @@ def update_user(
     for field_name, value in update_data.items():
         setattr(user, field_name, value)
 
+    new_snapshot = _user_snapshot(user)
+    changed_fields = [
+        field
+        for field in AUDIT_FIELDS
+        if old_snapshot.get(field) != new_snapshot.get(field)
+    ]
+    old_values = {field: old_snapshot.get(field) for field in changed_fields}
+    new_values = {field: new_snapshot.get(field) for field in changed_fields}
+
+    if password_requested:
+        changed_fields.append("password")
+        old_values["password"] = "[PROTECTED]"
+        new_values["password"] = "[CHANGED]"
+
     user.updated_at = datetime.now()
-    db.add(user)
-    db.commit()
-    db.refresh(user)
+    batch_id = activity_audit_service.new_batch_id()
+    try:
+        db.add(user)
+        if changed_fields:
+            activity_audit_service.record_activity(
+                db,
+                module_key=AUDIT_MODULE_KEY,
+                module_label=AUDIT_MODULE_LABEL,
+                table_name=AUDIT_TABLE_NAME,
+                record_id=user.user_id,
+                record_label=_user_label(user),
+                action=activity_audit_service.ACTION_UPDATE,
+                current_user=actor,
+                changed_fields=changed_fields,
+                old_values=old_values,
+                new_values=new_values,
+                batch_id=batch_id,
+            )
+        db.commit()
+        db.refresh(user)
+    except Exception:
+        db.rollback()
+        raise
     return user
