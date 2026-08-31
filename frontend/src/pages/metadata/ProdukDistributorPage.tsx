@@ -29,6 +29,10 @@ import { cn } from "@/lib/utils";
 
 type SelectedValue = string | number | null;
 type DraftValues = Record<string, unknown>;
+type InsertDraft = {
+  localId: string;
+  values: Record<string, string>;
+};
 
 const DISPLAY_COLUMN_ORDER = [
   "id",
@@ -111,6 +115,13 @@ function insertPayload(values: Record<string, string>): ProdukDistributorCreateI
   };
 }
 
+function makeInsertDraft(): InsertDraft {
+  return {
+    localId: `new-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    values: { ...EMPTY_INSERT },
+  };
+}
+
 export default function ProdukDistributorPage() {
   const [data, setData] = useState<ProdukDistributorPageData | null>(null);
   const [page, setPage] = useState(1);
@@ -123,14 +134,9 @@ export default function ProdukDistributorPage() {
   const [successMessage, setSuccessMessage] = useState("");
 
   const [draftRows, setDraftRows] = useState<Record<string, DraftValues>>({});
+  const [insertRows, setInsertRows] = useState<InsertDraft[]>([]);
   const [batchConfirmOpen, setBatchConfirmOpen] = useState(false);
   const [batchSaving, setBatchSaving] = useState(false);
-
-  const [insertOpen, setInsertOpen] = useState(false);
-  const [insertValues, setInsertValues] = useState<Record<string, string>>({
-    ...EMPTY_INSERT,
-  });
-  const [insertSaving, setInsertSaving] = useState(false);
 
   const [deleteTarget, setDeleteTarget] =
     useState<ProdukDistributorRecord | null>(null);
@@ -298,6 +304,21 @@ export default function ProdukDistributorPage() {
     }));
   };
 
+  const setInsertCellValue = (
+    localId: string,
+    field: string,
+    value: string
+  ) => {
+    setSuccessMessage("");
+    setInsertRows((current) =>
+      current.map((row) =>
+        row.localId === localId
+          ? { ...row, values: { ...row.values, [field]: value } }
+          : row
+      )
+    );
+  };
+
   const getChangedValues = (row: ProdukDistributorRecord) => {
     const draft = draftRows[rowId(row)] || {};
     const changed: Record<string, unknown> = {};
@@ -319,11 +340,18 @@ export default function ProdukDistributorPage() {
     .map((row) => ({ id: row.id, values: getChangedValues(row) }))
     .filter((item) => Object.keys(item.values).length > 0);
 
-  const dirtyRowCount = pendingUpdates.length;
-  const totalChangedFields = pendingUpdates.reduce(
-    (total, item) => total + Object.keys(item.values).length,
-    0
-  );
+  const pendingCreates = insertRows.map((row) => insertPayload(row.values));
+  const dirtyRowCount = pendingUpdates.length + pendingCreates.length;
+  const totalChangedFields =
+    pendingUpdates.reduce(
+      (total, item) => total + Object.keys(item.values).length,
+      0
+    ) +
+    insertRows.reduce(
+      (total, row) =>
+        total + Object.values(row.values).filter((value) => value !== "").length,
+      0
+    );
 
   const cancelRow = (row: ProdukDistributorRecord) => {
     setDraftRows((current) => {
@@ -333,59 +361,74 @@ export default function ProdukDistributorPage() {
     });
   };
 
+  const removeInsertRow = (localId: string) => {
+    setInsertRows((current) =>
+      current.filter((row) => row.localId !== localId)
+    );
+  };
+
+  const validateInsertRows = () => {
+    for (let index = 0; index < insertRows.length; index += 1) {
+      const row = insertRows[index];
+      if (!row.values.Kode_Dist.trim()) {
+        setError(`Row baru ${index + 1}: Kode Dist wajib diisi.`);
+        return false;
+      }
+      if (!row.values.Kode_Produk_Dist.trim()) {
+        setError(`Row baru ${index + 1}: Kode Produk Dist wajib diisi.`);
+        return false;
+      }
+    }
+    return true;
+  };
+
   const requestBatchSave = () => {
     if (!dirtyRowCount || batchSaving) return;
+    if (!validateInsertRows()) return;
+    setError("");
     setBatchConfirmOpen(true);
   };
 
   const saveAllChanges = async () => {
-    if (!pendingUpdates.length || batchSaving) return;
+    if (!dirtyRowCount || batchSaving) return;
+    if (!validateInsertRows()) return;
+
     setBatchSaving(true);
     setError("");
     setSuccessMessage("");
     try {
-      const response = await produkDistributorApi.updateBatch(pendingUpdates);
+      const response = await produkDistributorApi.saveChanges(
+        pendingCreates,
+        pendingUpdates
+      );
       setBatchConfirmOpen(false);
-      await load();
-      setSuccessMessage(`${response.data.updated_count} row berhasil diperbarui.`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Update Produk Distributor gagal");
-    } finally {
-      setBatchSaving(false);
-    }
-  };
-
-  const openInsert = () => {
-    setInsertValues({ ...EMPTY_INSERT });
-    setInsertOpen(true);
-    setSuccessMessage("");
-  };
-
-  const saveInsert = async () => {
-    if (insertSaving) return;
-    if (!insertValues.Kode_Dist || !insertValues.Kode_Produk_Dist) {
-      setError("Kode Dist dan Kode Produk Dist wajib diisi.");
-      return;
-    }
-
-    setInsertSaving(true);
-    setError("");
-    setSuccessMessage("");
-    try {
-      const response = await produkDistributorApi.create(insertPayload(insertValues));
-      setInsertOpen(false);
+      setDraftRows({});
+      setInsertRows([]);
       setSortBy("id");
       setSortDir("desc");
       setPage(1);
       await load();
       setSuccessMessage(
-        `Produk Distributor ID ${response.data.id} berhasil ditambahkan.`
+        `${response.data.created_count} row ditambahkan dan ${response.data.updated_count} row diperbarui.`
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Insert Produk Distributor gagal");
+      setError(err instanceof Error ? err.message : "Save Produk Distributor gagal");
     } finally {
-      setInsertSaving(false);
+      setBatchSaving(false);
     }
+  };
+
+  const addInsertRow = () => {
+    setInsertRows((current) => [makeInsertDraft(), ...current]);
+    setSuccessMessage("");
+    setError("");
+  };
+
+  const discardAll = () => {
+    setDraftRows({});
+    setInsertRows([]);
+    setBatchConfirmOpen(false);
+    setError("");
   };
 
   const deleteRecord = async () => {
@@ -451,7 +494,7 @@ export default function ProdukDistributorPage() {
     if (key === "s" || event.key === "Enter") {
       event.preventDefault();
       event.stopPropagation();
-      if (insertOpen || deleteTarget || valuePickerField) return;
+      if (deleteTarget || valuePickerField) return;
       if (batchConfirmOpen) void saveAllChanges();
       else requestBatchSave();
     }
@@ -506,7 +549,7 @@ export default function ProdukDistributorPage() {
         style={{ width: getColumnWidth(column.name) }}
       >
         <Input
-          type={column.data_type === "int" ? "number" : "text"}
+          type="text"
           className="h-8 w-full min-w-0 border-transparent bg-transparent px-2 text-sm hover:border-input focus:border-input"
           value={value == null ? "" : String(value)}
           maxLength={column.max_length || undefined}
@@ -514,6 +557,42 @@ export default function ProdukDistributorPage() {
           onKeyDown={(event) => {
             if (event.key === "Escape") cancelRow(row);
           }}
+        />
+      </td>
+    );
+  };
+
+  const renderInsertCell = (
+    row: InsertDraft,
+    column: ProdukDistributorColumn
+  ) => {
+    if (column.name === "id") {
+      return (
+        <td
+          key={column.name}
+          className="sticky left-0 z-10 border-b bg-primary/10 p-2 align-middle font-semibold text-primary"
+          style={{ width: getColumnWidth(column.name) }}
+        >
+          NEW
+        </td>
+      );
+    }
+
+    return (
+      <td
+        key={column.name}
+        className="border-b bg-primary/5 p-1 align-top"
+        style={{ width: getColumnWidth(column.name) }}
+      >
+        <Input
+          autoFocus={column.name === "Kode_Dist"}
+          type="text"
+          className="h-8 w-full min-w-0 bg-background px-2 text-sm"
+          value={row.values[column.name] ?? ""}
+          maxLength={column.max_length || undefined}
+          onChange={(event) =>
+            setInsertCellValue(row.localId, column.name, event.target.value)
+          }
         />
       </td>
     );
@@ -532,7 +611,7 @@ export default function ProdukDistributorPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button onClick={openInsert} disabled={batchSaving || insertSaving}>
+          <Button onClick={addInsertRow} disabled={batchSaving}>
             <Plus className="h-4 w-4" />
             Insert Row
           </Button>
@@ -544,7 +623,7 @@ export default function ProdukDistributorPage() {
           </Button>
           <Button
             variant="outline"
-            onClick={() => setDraftRows({})}
+            onClick={discardAll}
             disabled={!dirtyRowCount || batchSaving}
           >
             Discard All
@@ -557,7 +636,9 @@ export default function ProdukDistributorPage() {
 
       {dirtyRowCount > 0 && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100">
-          {dirtyRowCount} row dan {totalChangedFields} field belum disimpan.
+          {dirtyRowCount} row belum disimpan
+          {insertRows.length > 0 ? ` (${insertRows.length} row baru)` : ""}
+          {totalChangedFields > 0 ? `, ${totalChangedFields} field terisi/berubah.` : "."}
         </div>
       )}
 
@@ -673,6 +754,25 @@ export default function ProdukDistributorPage() {
                 </tr>
               </thead>
               <tbody>
+                {insertRows.map((row) => (
+                  <tr key={row.localId}>
+                    {columns.map((column) => renderInsertCell(row, column))}
+                    <td className="sticky right-0 border-b bg-primary/5 p-2 text-center">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        title="Batalkan row baru"
+                        aria-label="Batalkan row baru"
+                        onClick={() => removeInsertRow(row.localId)}
+                        disabled={batchSaving}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+
                 {data?.items.length ? (
                   data.items.map((row) => (
                     <tr key={row.id} className="hover:bg-muted/30">
@@ -692,7 +792,7 @@ export default function ProdukDistributorPage() {
                       </td>
                     </tr>
                   ))
-                ) : loading ? (
+                ) : insertRows.length ? null : loading ? (
                   <tr>
                     <td colSpan={columns.length + 1} className="p-8 text-center">
                       Memuat data CRM...
@@ -731,12 +831,18 @@ export default function ProdukDistributorPage() {
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4">
           <Card className="w-full max-w-lg">
             <CardHeader>
-              <CardTitle>Confirm Update</CardTitle>
+              <CardTitle>Confirm Save</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <p>
-                Simpan perubahan pada <strong>{dirtyRowCount}</strong> row dengan{" "}
-                <strong>{totalChangedFields}</strong> field berubah?
+                Simpan <strong>{dirtyRowCount}</strong> row perubahan ke CRM?
+              </p>
+              <div className="rounded-md border bg-muted/30 p-3 text-sm">
+                <div>Row baru: {pendingCreates.length}</div>
+                <div>Row diedit: {pendingUpdates.length}</div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Semua insert dan update akan disimpan dalam satu transaksi.
               </p>
               <div className="flex justify-end gap-2">
                 <Button
@@ -752,58 +858,6 @@ export default function ProdukDistributorPage() {
               </div>
             </CardContent>
           </Card>
-        </div>
-      )}
-
-      {insertOpen && (
-        <div className="fixed inset-0 z-[120] overflow-y-auto bg-black/50 p-4">
-          <div className="flex min-h-full items-center justify-center py-6">
-            <Card className="w-full max-w-3xl">
-              <CardHeader>
-                <CardTitle>Insert Produk Distributor</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-5">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {Object.keys(EMPTY_INSERT).map((field) => {
-                    const column = columnMap.get(field);
-                    const required = !column?.is_nullable;
-                    const label = displayColumnLabel(column, field);
-                    return (
-                      <label key={field} className="space-y-1.5">
-                        <span className="text-xs font-semibold">
-                          {label}
-                          {required ? " *" : ""}
-                        </span>
-                        <Input
-                          type="text"
-                          value={insertValues[field]}
-                          maxLength={column?.max_length || undefined}
-                          onChange={(event) =>
-                            setInsertValues((current) => ({
-                              ...current,
-                              [field]: event.target.value,
-                            }))
-                          }
-                        />
-                      </label>
-                    );
-                  })}
-                </div>
-                <div className="flex justify-end gap-2 border-t pt-4">
-                  <Button
-                    variant="outline"
-                    onClick={() => setInsertOpen(false)}
-                    disabled={insertSaving}
-                  >
-                    Cancel
-                  </Button>
-                  <Button onClick={() => void saveInsert()} disabled={insertSaving}>
-                    {insertSaving ? "Saving..." : "Insert"}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
         </div>
       )}
 
