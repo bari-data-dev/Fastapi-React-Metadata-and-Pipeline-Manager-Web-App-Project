@@ -39,7 +39,7 @@ export function AppSidebar() {
 
   const items = [
     {
-      title: "ODIST Parsing",
+      title: "Parsing",
       url: "/metadata/odists-parsing",
       icon: TableProperties,
     },
