@@ -4,7 +4,7 @@ from typing import Literal, Optional
 from pydantic import BaseModel, Field, validator
 
 
-UserRole = Literal["ADMIN", "PARSER-TEAM", "PARSER-INTERN", "MANAGER"]
+UserRole = Literal["ADMIN", "TEAM", "MANAGER", "INTERN"]
 
 
 class LoginRequest(BaseModel):
@@ -27,7 +27,7 @@ class AppUserCreate(BaseModel):
     username: str = Field(..., min_length=3, max_length=100)
     password: str = Field(..., min_length=8, max_length=128)
     full_name: str = Field(..., min_length=1, max_length=191)
-    role: UserRole = "PARSER-TEAM"
+    role: UserRole = "TEAM"
     is_active: bool = True
 
     @validator("username")
