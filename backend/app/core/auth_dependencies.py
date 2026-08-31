@@ -9,7 +9,7 @@ from app.services.auth_service import get_user_by_id
 
 
 bearer_scheme = HTTPBearer(auto_error=False)
-USER_DIRECTORY_ROLES = {"ADMIN", "MANAGER", "PARSER-TEAM"}
+USER_DIRECTORY_ROLES = {"ADMIN", "MANAGER", "TEAM"}
 
 
 def get_current_user(
