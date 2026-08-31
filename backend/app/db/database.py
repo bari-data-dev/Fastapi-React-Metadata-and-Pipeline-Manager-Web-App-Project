@@ -1,5 +1,5 @@
 # backend/app/db/database.py
-from typing import Generator, Optional
+from typing import Any, Generator, Optional
 
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
@@ -68,3 +68,20 @@ def get_mysql_pipeline_session() -> Generator[Session, None, None]:
         yield db
     finally:
         db.close()
+
+
+def get_crm_connection() -> Generator[Any, None, None]:
+    settings.validate_crm_jdbc()
+
+    import jaydebeapi
+
+    connection = jaydebeapi.connect(
+        "net.sourceforge.jtds.jdbc.Driver",
+        settings.JDBC_URL_CRM,
+        [settings.DB_USER_CRM, settings.DB_PASSWORD_CRM],
+        settings.JDBC_JAR_CRM,
+    )
+    try:
+        yield connection
+    finally:
+        connection.close()
