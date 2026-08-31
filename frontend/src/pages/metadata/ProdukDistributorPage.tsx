@@ -86,6 +86,15 @@ const EMPTY_INSERT: Record<string, string> = {
   Nama_Produk_Dist: "",
 };
 
+const REQUIRED_INSERT_FIELDS: Array<{ field: string; label: string }> = [
+  { field: "Kode_Dist", label: "Kode Dist" },
+  { field: "temp", label: "Nama Dist" },
+  { field: "Kode_Produk_Dist", label: "Kode Produk Dist" },
+  { field: "Kode_Produk_GPL", label: "Kode Produk GPL" },
+  { field: "Nama_Produk_GPL", label: "Nama Produk GPL" },
+  { field: "Nama_Produk_Dist", label: "Nama Produk Dist" },
+];
+
 function valueKey(value: SelectedValue) {
   return value === null ? "__NULL__" : `${typeof value}:${String(value)}`;
 }
@@ -131,22 +140,20 @@ function displayColumnLabel(
   column: ProdukDistributorColumn | undefined,
   field: string
 ) {
-  if (field === "temp") return "NAME DIST";
+  if (field === "temp") return "NAMA DIST";
   return column?.label || field.replace(/_/g, " ").toUpperCase();
 }
 
 function insertPayload(values: Record<string, string>): ProdukDistributorCreateInput {
-  const optionalString = (value: string) => (value === "" ? null : value);
-
   return {
-    Kode_Dist: values.Kode_Dist,
-    Kode_Produk_Dist: values.Kode_Produk_Dist,
-    Kode_Produk_GPL: optionalString(values.Kode_Produk_GPL),
+    Kode_Dist: values.Kode_Dist.trim(),
+    Kode_Produk_Dist: values.Kode_Produk_Dist.trim(),
+    Kode_Produk_GPL: values.Kode_Produk_GPL.trim(),
     Konversi_Unit: null,
-    Nama_Produk_GPL: optionalString(values.Nama_Produk_GPL),
-    Nama_Produk_Dist: optionalString(values.Nama_Produk_Dist),
+    Nama_Produk_GPL: values.Nama_Produk_GPL.trim(),
+    Nama_Produk_Dist: values.Nama_Produk_Dist.trim(),
     Produk_Paket: null,
-    temp: optionalString(values.temp),
+    temp: values.temp.trim(),
   };
 }
 
@@ -442,13 +449,11 @@ export default function ProdukDistributorPage() {
   const validateInsertRows = () => {
     for (let index = 0; index < insertRows.length; index += 1) {
       const row = insertRows[index];
-      if (!row.values.Kode_Dist.trim()) {
-        setError(`Row baru ${index + 1}: Kode Dist wajib diisi.`);
-        return false;
-      }
-      if (!row.values.Kode_Produk_Dist.trim()) {
-        setError(`Row baru ${index + 1}: Kode Produk Dist wajib diisi.`);
-        return false;
+      for (const required of REQUIRED_INSERT_FIELDS) {
+        if (!String(row.values[required.field] ?? "").trim()) {
+          setError(`Row baru ${index + 1}: ${required.label} wajib diisi.`);
+          return false;
+        }
       }
     }
     return true;
@@ -539,6 +544,17 @@ export default function ProdukDistributorPage() {
   };
 
   const handlePageKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (
+      event.key === "Enter" &&
+      batchConfirmOpen &&
+      !valuePickerField
+    ) {
+      event.preventDefault();
+      event.stopPropagation();
+      void saveAllChanges();
+      return;
+    }
+
     const command = event.ctrlKey || event.metaKey;
     if (!command) return;
 
@@ -551,7 +567,7 @@ export default function ProdukDistributorPage() {
       return;
     }
 
-    if (key === "s" || event.key === "Enter") {
+    if (key === "s") {
       event.preventDefault();
       event.stopPropagation();
       if (valuePickerField) return;
@@ -988,6 +1004,7 @@ export default function ProdukDistributorPage() {
               </div>
               <p className="text-xs text-muted-foreground">
                 Semua insert, update, dan delete akan disimpan dalam satu transaksi.
+                Tekan Enter untuk menyimpan.
               </p>
               <div className="flex justify-end gap-2">
                 <Button
