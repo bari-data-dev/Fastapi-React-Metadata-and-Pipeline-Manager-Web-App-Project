@@ -13,12 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
-const ROLE_OPTIONS: AppRole[] = [
-  "ADMIN",
-  "PARSER-TEAM",
-  "PARSER-INTERN",
-  "MANAGER",
-];
+const ROLE_OPTIONS: AppRole[] = ["ADMIN", "TEAM", "MANAGER", "INTERN"];
 
 type UserForm = {
   username: string;
@@ -31,7 +26,7 @@ const EMPTY_FORM: UserForm = {
   username: "",
   full_name: "",
   password: "",
-  role: "PARSER-TEAM",
+  role: "TEAM",
 };
 
 function formatDateTime(value?: string | null) {
@@ -55,9 +50,9 @@ function RoleBadge({ role }: { role: AppRole }) {
       "border-violet-300 bg-violet-50 text-violet-700 dark:border-violet-900 dark:bg-violet-950/30 dark:text-violet-300",
     MANAGER:
       "border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-300",
-    "PARSER-TEAM":
+    TEAM:
       "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300",
-    "PARSER-INTERN":
+    INTERN:
       "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300",
   };
 
@@ -134,9 +129,7 @@ export default function UsersPage() {
   const [editForm, setEditForm] = useState<UserForm>(EMPTY_FORM);
   const noticeTimer = useRef<number | null>(null);
 
-  const canView = Boolean(
-    user && ["ADMIN", "MANAGER", "PARSER-TEAM"].includes(user.role)
-  );
+  const canView = Boolean(user && ["ADMIN", "MANAGER", "TEAM"].includes(user.role));
   const canCreateOrEdit = user?.role === "ADMIN";
   const canToggle = user?.role === "ADMIN" || user?.role === "MANAGER";
 
@@ -177,10 +170,7 @@ export default function UsersPage() {
     setCreating(true);
     setError("");
     try {
-      const response = await authApi.createUser({
-        ...createForm,
-        is_active: true,
-      });
+      const response = await authApi.createUser({ ...createForm, is_active: true });
       setUsers((current) =>
         [...current, response.data].sort((a, b) => a.user_id - b.user_id)
       );
@@ -231,9 +221,7 @@ export default function UsersPage() {
           item.user_id === response.data.user_id ? response.data : item
         )
       );
-      if (response.data.user_id === user.user_id) {
-        updateCurrentUser(response.data);
-      }
+      if (response.data.user_id === user.user_id) updateCurrentUser(response.data);
       setEditingUser(null);
       setEditForm(EMPTY_FORM);
       showSuccess("Data user berhasil diperbarui.");
@@ -259,9 +247,7 @@ export default function UsersPage() {
     );
 
     try {
-      const response = await authApi.updateUser(item.user_id, {
-        is_active: nextActive,
-      });
+      const response = await authApi.updateUser(item.user_id, { is_active: nextActive });
       setUsers((current) =>
         current.map((row) =>
           row.user_id === response.data.user_id ? response.data : row
@@ -295,7 +281,7 @@ export default function UsersPage() {
             ? "ADMIN dapat menambah dan mengubah detail anggota. Status akses diatur langsung dari toggle tabel."
             : user.role === "MANAGER"
               ? "MANAGER hanya dapat mengaktifkan atau menonaktifkan anggota."
-              : "PARSER-TEAM memiliki akses lihat saja ke daftar anggota."}
+              : "TEAM memiliki akses lihat saja ke daftar anggota."}
         </p>
       </div>
 
@@ -312,123 +298,48 @@ export default function UsersPage() {
 
       {canCreateOrEdit && (
         <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Tambah User</CardTitle>
-          </CardHeader>
+          <CardHeader><CardTitle className="text-base">Tambah User</CardTitle></CardHeader>
           <CardContent>
-            <form
-              onSubmit={submitCreate}
-              className="grid grid-cols-1 items-end gap-3 md:grid-cols-2 xl:grid-cols-5"
-            >
+            <form onSubmit={submitCreate} className="grid grid-cols-1 items-end gap-3 md:grid-cols-2 xl:grid-cols-5">
               <div className="space-y-1.5">
                 <Label>Username</Label>
-                <Input
-                  value={createForm.username}
-                  onChange={(event) =>
-                    setCreateForm((current) => ({
-                      ...current,
-                      username: event.target.value,
-                    }))
-                  }
-                  required
-                  minLength={3}
-                  maxLength={100}
-                  autoComplete="off"
-                />
+                <Input value={createForm.username} onChange={(event) => setCreateForm((current) => ({ ...current, username: event.target.value }))} required minLength={3} maxLength={100} autoComplete="off" />
               </div>
               <div className="space-y-1.5">
                 <Label>Nama Lengkap</Label>
-                <Input
-                  value={createForm.full_name}
-                  onChange={(event) =>
-                    setCreateForm((current) => ({
-                      ...current,
-                      full_name: event.target.value,
-                    }))
-                  }
-                  required
-                  maxLength={191}
-                />
+                <Input value={createForm.full_name} onChange={(event) => setCreateForm((current) => ({ ...current, full_name: event.target.value }))} required maxLength={191} />
               </div>
               <div className="space-y-1.5">
                 <Label>Password</Label>
-                <Input
-                  type="password"
-                  value={createForm.password}
-                  onChange={(event) =>
-                    setCreateForm((current) => ({
-                      ...current,
-                      password: event.target.value,
-                    }))
-                  }
-                  required
-                  minLength={8}
-                  maxLength={128}
-                  autoComplete="new-password"
-                />
+                <Input type="password" value={createForm.password} onChange={(event) => setCreateForm((current) => ({ ...current, password: event.target.value }))} required minLength={8} maxLength={128} autoComplete="new-password" />
               </div>
               <div className="space-y-1.5">
                 <Label>Role</Label>
-                <select
-                  className="h-10 w-full rounded-md border bg-background px-3"
-                  value={createForm.role}
-                  onChange={(event) =>
-                    setCreateForm((current) => ({
-                      ...current,
-                      role: event.target.value as AppRole,
-                    }))
-                  }
-                >
-                  {ROLE_OPTIONS.map((role) => (
-                    <option key={role} value={role}>
-                      {role}
-                    </option>
-                  ))}
+                <select className="h-10 w-full rounded-md border bg-background px-3" value={createForm.role} onChange={(event) => setCreateForm((current) => ({ ...current, role: event.target.value as AppRole }))}>
+                  {ROLE_OPTIONS.map((role) => <option key={role} value={role}>{role}</option>)}
                 </select>
               </div>
-              <Button type="submit" disabled={creating}>
-                {creating ? "Menambahkan..." : "Tambah User"}
-              </Button>
+              <Button type="submit" disabled={creating}>{creating ? "Menambahkan..." : "Tambah User"}</Button>
             </form>
           </CardContent>
         </Card>
       )}
 
       <Card className="min-w-0 overflow-hidden">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Daftar User</CardTitle>
-        </CardHeader>
+        <CardHeader className="pb-3"><CardTitle className="text-base">Daftar User</CardTitle></CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1040px] text-sm">
               <thead className="bg-muted/50">
                 <tr>
-                  {[
-                    "ID",
-                    "USERNAME",
-                    "NAMA LENGKAP",
-                    "ROLE",
-                    "STATUS AKSES",
-                    "LAST LOGIN",
-                    "UPDATED AT",
-                    "ACTION",
-                  ].map((head) => (
-                    <th
-                      key={head}
-                      className="border-b p-3 text-left text-xs font-semibold"
-                    >
-                      {head}
-                    </th>
+                  {["ID", "USERNAME", "NAMA LENGKAP", "ROLE", "STATUS AKSES", "LAST LOGIN", "UPDATED AT", "ACTION"].map((head) => (
+                    <th key={head} className="border-b p-3 text-left text-xs font-semibold">{head}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr>
-                    <td colSpan={8} className="p-8 text-center text-muted-foreground">
-                      Memuat user...
-                    </td>
-                  </tr>
+                  <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">Memuat user...</td></tr>
                 ) : users.length ? (
                   users.map((item) => {
                     const isOwnAccount = item.user_id === user.user_id;
@@ -436,60 +347,20 @@ export default function UsersPage() {
                     return (
                       <tr key={item.user_id} className="hover:bg-muted/30">
                         <td className="border-b p-3 tabular-nums">{item.user_id}</td>
-                        <td className="border-b p-3 font-medium">
-                          {item.username}
-                          {isOwnAccount && (
-                            <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                              YOU
-                            </span>
-                          )}
-                        </td>
+                        <td className="border-b p-3 font-medium">{item.username}{isOwnAccount && <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">YOU</span>}</td>
                         <td className="border-b p-3">{item.full_name}</td>
+                        <td className="border-b p-3"><RoleBadge role={item.role} /></td>
+                        <td className="border-b p-3"><StatusSwitch checked={item.is_active} busy={busy} disabled={!canToggle || isOwnAccount || busy} onChange={() => void toggleActive(item)} /></td>
+                        <td className="whitespace-nowrap border-b p-3">{formatDateTime(item.last_login_at)}</td>
+                        <td className="whitespace-nowrap border-b p-3">{formatDateTime(item.updated_at)}</td>
                         <td className="border-b p-3">
-                          <RoleBadge role={item.role} />
-                        </td>
-                        <td className="border-b p-3">
-                          <StatusSwitch
-                            checked={item.is_active}
-                            busy={busy}
-                            disabled={!canToggle || isOwnAccount || busy}
-                            onChange={() => void toggleActive(item)}
-                          />
-                        </td>
-                        <td className="whitespace-nowrap border-b p-3">
-                          {formatDateTime(item.last_login_at)}
-                        </td>
-                        <td className="whitespace-nowrap border-b p-3">
-                          {formatDateTime(item.updated_at)}
-                        </td>
-                        <td className="border-b p-3">
-                          {canCreateOrEdit ? (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => openEdit(item)}
-                            >
-                              Edit Detail
-                            </Button>
-                          ) : canToggle ? (
-                            <span className="text-xs text-muted-foreground">
-                              Gunakan toggle status
-                            </span>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">
-                              View only
-                            </span>
-                          )}
+                          {canCreateOrEdit ? <Button size="sm" variant="outline" onClick={() => openEdit(item)}>Edit Detail</Button> : canToggle ? <span className="text-xs text-muted-foreground">Gunakan toggle status</span> : <span className="text-xs text-muted-foreground">View only</span>}
                         </td>
                       </tr>
                     );
                   })
                 ) : (
-                  <tr>
-                    <td colSpan={8} className="p-8 text-center text-muted-foreground">
-                      Belum ada user.
-                    </td>
-                  </tr>
+                  <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">Belum ada user.</td></tr>
                 )}
               </tbody>
             </table>
@@ -498,106 +369,29 @@ export default function UsersPage() {
       </Card>
 
       {editingUser && canCreateOrEdit && (
-        <div
-          className="fixed inset-0 z-[120] overflow-y-auto bg-black/50 p-0 sm:p-6"
-          onPointerDown={(event) => {
-            if (event.target === event.currentTarget) closeEdit();
-          }}
-        >
+        <div className="fixed inset-0 z-[120] overflow-y-auto bg-black/50 p-0 sm:p-6" onPointerDown={(event) => { if (event.target === event.currentTarget) closeEdit(); }}>
           <div className="flex min-h-full items-start justify-center sm:items-center sm:py-4">
             <Card className="flex min-h-[100dvh] w-full max-w-2xl flex-col rounded-none border-0 shadow-2xl sm:min-h-0 sm:rounded-xl sm:border">
               <CardHeader className="border-b">
-                <CardTitle className="text-lg sm:text-xl">
-                  Edit User #{editingUser.user_id}
-                </CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Status ACTIVE/INACTIVE tidak diubah di form ini. Gunakan toggle pada tabel.
-                </p>
+                <CardTitle className="text-lg sm:text-xl">Edit User #{editingUser.user_id}</CardTitle>
+                <p className="text-sm text-muted-foreground">Status ACTIVE/INACTIVE tidak diubah di form ini. Gunakan toggle pada tabel.</p>
               </CardHeader>
               <CardContent className="flex-1 p-4 sm:p-6">
                 <form onSubmit={submitEdit} className="space-y-5">
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-1.5">
-                      <Label>Username</Label>
-                      <Input
-                        value={editForm.username}
-                        onChange={(event) =>
-                          setEditForm((current) => ({
-                            ...current,
-                            username: event.target.value,
-                          }))
-                        }
-                        required
-                        minLength={3}
-                        maxLength={100}
-                        autoComplete="off"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label>Nama Lengkap</Label>
-                      <Input
-                        value={editForm.full_name}
-                        onChange={(event) =>
-                          setEditForm((current) => ({
-                            ...current,
-                            full_name: event.target.value,
-                          }))
-                        }
-                        required
-                        maxLength={191}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label>Password Baru</Label>
-                      <Input
-                        type="password"
-                        value={editForm.password}
-                        onChange={(event) =>
-                          setEditForm((current) => ({
-                            ...current,
-                            password: event.target.value,
-                          }))
-                        }
-                        minLength={8}
-                        maxLength={128}
-                        placeholder="Kosongkan jika tidak diubah"
-                        autoComplete="new-password"
-                      />
-                    </div>
+                    <div className="space-y-1.5"><Label>Username</Label><Input value={editForm.username} onChange={(event) => setEditForm((current) => ({ ...current, username: event.target.value }))} required minLength={3} maxLength={100} autoComplete="off" /></div>
+                    <div className="space-y-1.5"><Label>Nama Lengkap</Label><Input value={editForm.full_name} onChange={(event) => setEditForm((current) => ({ ...current, full_name: event.target.value }))} required maxLength={191} /></div>
+                    <div className="space-y-1.5"><Label>Password Baru</Label><Input type="password" value={editForm.password} onChange={(event) => setEditForm((current) => ({ ...current, password: event.target.value }))} minLength={8} maxLength={128} placeholder="Kosongkan jika tidak diubah" autoComplete="new-password" /></div>
                     <div className="space-y-1.5">
                       <Label>Role</Label>
-                      <select
-                        className="h-10 w-full rounded-md border bg-background px-3 disabled:cursor-not-allowed disabled:opacity-60"
-                        value={editForm.role}
-                        disabled={editingUser.user_id === user.user_id}
-                        onChange={(event) =>
-                          setEditForm((current) => ({
-                            ...current,
-                            role: event.target.value as AppRole,
-                          }))
-                        }
-                      >
-                        {ROLE_OPTIONS.map((role) => (
-                          <option key={role} value={role}>
-                            {role}
-                          </option>
-                        ))}
+                      <select className="h-10 w-full rounded-md border bg-background px-3 disabled:cursor-not-allowed disabled:opacity-60" value={editForm.role} disabled={editingUser.user_id === user.user_id} onChange={(event) => setEditForm((current) => ({ ...current, role: event.target.value as AppRole }))}>
+                        {ROLE_OPTIONS.map((role) => <option key={role} value={role}>{role}</option>)}
                       </select>
                     </div>
                   </div>
-
                   <div className="flex flex-col-reverse gap-2 border-t pt-5 sm:flex-row sm:justify-end">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={closeEdit}
-                      disabled={savingEdit}
-                    >
-                      Cancel
-                    </Button>
-                    <Button type="submit" disabled={savingEdit}>
-                      {savingEdit ? "Menyimpan..." : "Simpan Perubahan"}
-                    </Button>
+                    <Button type="button" variant="outline" onClick={closeEdit} disabled={savingEdit}>Cancel</Button>
+                    <Button type="submit" disabled={savingEdit}>{savingEdit ? "Menyimpan..." : "Simpan Perubahan"}</Button>
                   </div>
                 </form>
               </CardContent>
