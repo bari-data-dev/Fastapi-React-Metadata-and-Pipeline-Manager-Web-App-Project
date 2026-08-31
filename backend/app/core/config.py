@@ -52,6 +52,18 @@ class Settings:
     MYSQL_PIPELINE_READ_TIMEOUT: int
     MYSQL_PIPELINE_WRITE_TIMEOUT: int
 
+    DB_HOST_CRM: str
+    DB_PORT_CRM: int
+    DB_NAME_CRM: str
+    DB_USER_CRM: str
+    DB_PASSWORD_CRM: str
+    DB_SCHEMA_CRM: str
+    DB_DRIVER_CRM: str
+    JDBC_JAR_CRM: str
+    JDBC_URL_CRM: str
+    DB_ENCRYPT_CRM: bool
+    DB_TRUST_CERT_CRM: bool
+
     APP_HOST: str
     APP_PORT: int
     CORS_ORIGINS: str
@@ -90,6 +102,20 @@ class Settings:
         self.MYSQL_PIPELINE_CONNECT_TIMEOUT = int(os.getenv("MYSQL_PIPELINE_CONNECT_TIMEOUT", "30"))
         self.MYSQL_PIPELINE_READ_TIMEOUT = int(os.getenv("MYSQL_PIPELINE_READ_TIMEOUT", "600"))
         self.MYSQL_PIPELINE_WRITE_TIMEOUT = int(os.getenv("MYSQL_PIPELINE_WRITE_TIMEOUT", "600"))
+
+        self.DB_HOST_CRM = os.getenv("DB_HOST_CRM", "")
+        self.DB_PORT_CRM = int(os.getenv("DB_PORT_CRM", "1433"))
+        self.DB_NAME_CRM = os.getenv("DB_NAME_CRM", "CRM")
+        self.DB_USER_CRM = os.getenv("DB_USER_CRM", "")
+        self.DB_PASSWORD_CRM = os.getenv("DB_PASSWORD_CRM", "")
+        self.DB_SCHEMA_CRM = os.getenv("DB_SCHEMA_CRM", "dbo") or "dbo"
+        self.DB_DRIVER_CRM = os.getenv("DB_DRIVER_CRM", "JTDS")
+        self.JDBC_JAR_CRM = os.getenv(
+            "JDBC_JAR_CRM", "/srv/data_platform/drivers/jtds-1.3.1.jar"
+        )
+        self.JDBC_URL_CRM = os.getenv("JDBC_URL_CRM", "")
+        self.DB_ENCRYPT_CRM = _bool_from_env("DB_ENCRYPT_CRM", False)
+        self.DB_TRUST_CERT_CRM = _bool_from_env("DB_TRUST_CERT_CRM", True)
 
         self.APP_HOST = os.getenv("APP_HOST", "0.0.0.0")
         self.APP_PORT = int(os.getenv("APP_PORT", "8000"))
@@ -174,6 +200,18 @@ class Settings:
             f"{self.MYSQL_PIPELINE_HOST}:{self.MYSQL_PIPELINE_PORT}/{database_enc}"
             f"?charset={charset_enc}"
         )
+
+    def validate_crm_jdbc(self) -> None:
+        if not (
+            self.JDBC_URL_CRM
+            and self.DB_USER_CRM
+            and self.DB_PASSWORD_CRM
+            and self.JDBC_JAR_CRM
+        ):
+            raise RuntimeError(
+                "Konfigurasi CRM belum lengkap. Isi JDBC_URL_CRM, DB_USER_CRM, "
+                "DB_PASSWORD_CRM, dan JDBC_JAR_CRM."
+            )
 
 
 settings = Settings()
