@@ -56,6 +56,48 @@ export type OdistsBatchUpdateResult = {
   updated_ids: number[];
 };
 
+export type ProdukDistributorColumn = {
+  name: string;
+  label: string;
+  data_type: string;
+  is_nullable: boolean;
+  max_length?: number | null;
+  editable: boolean;
+};
+
+export type ProdukDistributorRecord = {
+  id: number;
+  Kode_Dist: string;
+  Kode_Produk_Dist: string;
+  Kode_Produk_GPL?: string | null;
+  Konversi_Unit?: number | null;
+  Nama_Produk_GPL?: string | null;
+  Nama_Produk_Dist?: string | null;
+  Produk_Paket?: number | null;
+  temp?: string | null;
+};
+
+export type ProdukDistributorPage = {
+  items: ProdukDistributorRecord[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+  columns: ProdukDistributorColumn[];
+};
+
+export type ProdukDistributorCreateInput = Omit<ProdukDistributorRecord, "id">;
+
+export type ProdukDistributorBatchUpdateItem = {
+  id: number;
+  values: Record<string, unknown>;
+};
+
+export type ProdukDistributorBatchUpdateResult = {
+  updated_count: number;
+  updated_ids: number[];
+};
+
 export type ParsingMemberOption = {
   user_id: number | null;
   member_name: string;
@@ -251,6 +293,61 @@ export const odistsApi = {
     appFetch<OdistsBatchUpdateResult>("/odists-parsing/batch", {
       method: "PUT",
       body: JSON.stringify({ items }),
+    }),
+};
+
+export const produkDistributorApi = {
+  getPage: (params: {
+    page: number;
+    pageSize: number;
+    filters: Record<string, string>;
+    sortBy: string;
+    sortDir: "asc" | "desc";
+  }) => {
+    const query = new URLSearchParams({
+      page: String(params.page),
+      page_size: String(params.pageSize),
+      filters: JSON.stringify(params.filters),
+      sort_by: params.sortBy,
+      sort_dir: params.sortDir,
+    });
+    return appFetch<ProdukDistributorPage>(
+      `/produk-distributor?${query.toString()}`
+    );
+  },
+  getDistinctValues: (
+    field: string,
+    search = "",
+    limit = 100,
+    filters: Record<string, string> = {}
+  ) => {
+    const query = new URLSearchParams({
+      limit: String(limit),
+      filters: JSON.stringify(filters),
+    });
+    if (search) query.set("search", search);
+    return appFetch<DistinctValue[]>(
+      `/produk-distributor/values/${encodeURIComponent(field)}?${query.toString()}`
+    );
+  },
+  create: (payload: ProdukDistributorCreateInput) =>
+    appFetch<ProdukDistributorRecord>("/produk-distributor", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  update: (id: number, values: Record<string, unknown>) =>
+    appFetch<ProdukDistributorRecord>(`/produk-distributor/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ values }),
+    }),
+  updateBatch: (items: ProdukDistributorBatchUpdateItem[]) =>
+    appFetch<ProdukDistributorBatchUpdateResult>("/produk-distributor/batch", {
+      method: "PUT",
+      body: JSON.stringify({ items }),
+    }),
+  remove: (id: number) =>
+    appFetch<{ deleted_id: number }>(`/produk-distributor/${id}`, {
+      method: "DELETE",
     }),
 };
 
