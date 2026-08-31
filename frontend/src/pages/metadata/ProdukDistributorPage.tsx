@@ -7,6 +7,7 @@ import {
 } from "react";
 import { Copy, Filter, Plus, Trash2 } from "lucide-react";
 import {
+  appFetch,
   DistinctValue,
   ProdukDistributorBatchUpdateItem,
   ProdukDistributorColumn,
@@ -32,6 +33,14 @@ type DraftValues = Record<string, unknown>;
 type InsertDraft = {
   localId: string;
   values: Record<string, string>;
+};
+type SaveResult = {
+  created_count: number;
+  created_ids: number[];
+  updated_count: number;
+  updated_ids: number[];
+  deleted_count: number;
+  deleted_ids: number[];
 };
 
 const DISPLAY_COLUMN_ORDER = [
@@ -137,12 +146,9 @@ export default function ProdukDistributorPage() {
 
   const [draftRows, setDraftRows] = useState<Record<string, DraftValues>>({});
   const [insertRows, setInsertRows] = useState<InsertDraft[]>([]);
+  const [pendingDeleteIds, setPendingDeleteIds] = useState<number[]>([]);
   const [batchConfirmOpen, setBatchConfirmOpen] = useState(false);
   const [batchSaving, setBatchSaving] = useState(false);
-
-  const [deleteTarget, setDeleteTarget] =
-    useState<ProdukDistributorRecord | null>(null);
-  const [deleteSaving, setDeleteSaving] = useState(false);
 
   const [valuePickerField, setValuePickerField] = useState<string | null>(null);
   const [valuePickerSearch, setValuePickerSearch] = useState("");
@@ -224,6 +230,10 @@ export default function ProdukDistributorPage() {
   );
 
   const activeFilterCount = Object.keys(appliedFilters).length;
+  const pendingDeleteSet = useMemo(
+    () => new Set(pendingDeleteIds),
+    [pendingDeleteIds]
+  );
 
   const getColumnWidth = (field: string) =>
     columnWidths[field] || DEFAULT_COLUMN_WIDTHS[field] || 180;
@@ -298,6 +308,7 @@ export default function ProdukDistributorPage() {
     field: string,
     value: unknown
   ) => {
+    if (pendingDeleteSet.has(row.id)) return;
     const id = rowId(row);
     setSuccessMessage("");
     setDraftRows((current) => ({
@@ -339,11 +350,13 @@ export default function ProdukDistributorPage() {
   };
 
   const pendingUpdates: ProdukDistributorBatchUpdateItem[] = (data?.items || [])
+    .filter((row) => !pendingDeleteSet.has(row.id))
     .map((row) => ({ id: row.id, values: getChangedValues(row) }))
     .filter((item) => Object.keys(item.values).length > 0);
 
   const pendingCreates = insertRows.map((row) => insertPayload(row.values));
-  const dirtyRowCount = pendingUpdates.length + pendingCreates.length;
+  const dirtyRowCount =
+    pendingUpdates.length + pendingCreates.length + pendingDeleteIds.length;
   const totalChangedFields =
     pendingUpdates.reduce(
       (total, item) => total + Object.keys(item.values).length,
@@ -390,6 +403,16 @@ export default function ProdukDistributorPage() {
     setError("");
   };
 
+  const togglePendingDelete = (row: ProdukDistributorRecord) => {
+    setPendingDeleteIds((current) =>
+      current.includes(row.id)
+        ? current.filter((id) => id !== row.id)
+        : [...current, row.id]
+    );
+    setSuccessMessage("");
+    setError("");
+  };
+
   const validateInsertRows = () => {
     for (let index = 0; index < insertRows.length; index += 1) {
       const row = insertRows[index];
@@ -420,19 +443,24 @@ export default function ProdukDistributorPage() {
     setError("");
     setSuccessMessage("");
     try {
-      const response = await produkDistributorApi.saveChanges(
-        pendingCreates,
-        pendingUpdates
-      );
+      const response = await appFetch<SaveResult>("/produk-distributor/save", {
+        method: "POST",
+        body: JSON.stringify({
+          creates: pendingCreates,
+          updates: pendingUpdates,
+          deletes: pendingDeleteIds,
+        }),
+      });
       setBatchConfirmOpen(false);
       setDraftRows({});
       setInsertRows([]);
+      setPendingDeleteIds([]);
       setSortBy("id");
       setSortDir("desc");
       setPage(1);
       await load();
       setSuccessMessage(
-        `${response.data.created_count} row ditambahkan dan ${response.data.updated_count} row diperbarui.`
+        `${response.data.created_count} row ditambahkan, ${response.data.updated_count} row diperbarui, dan ${response.data.deleted_count} row dihapus.`
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save Produk Distributor gagal");
@@ -450,26 +478,9 @@ export default function ProdukDistributorPage() {
   const discardAll = () => {
     setDraftRows({});
     setInsertRows([]);
+    setPendingDeleteIds([]);
     setBatchConfirmOpen(false);
     setError("");
-  };
-
-  const deleteRecord = async () => {
-    if (!deleteTarget || deleteSaving) return;
-    setDeleteSaving(true);
-    setError("");
-    setSuccessMessage("");
-    try {
-      const deletedId = deleteTarget.id;
-      await produkDistributorApi.remove(deletedId);
-      setDeleteTarget(null);
-      await load();
-      setSuccessMessage(`Produk Distributor ID ${deletedId} berhasil dihapus.`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Delete Produk Distributor gagal");
-    } finally {
-      setDeleteSaving(false);
-    }
   };
 
   const openValuePicker = (field: string) => {
@@ -517,7 +528,7 @@ export default function ProdukDistributorPage() {
     if (key === "s" || event.key === "Enter") {
       event.preventDefault();
       event.stopPropagation();
-      if (deleteTarget || valuePickerField) return;
+      if (valuePickerField) return;
       if (batchConfirmOpen) void saveAllChanges();
       else requestBatchSave();
     }
@@ -525,7 +536,8 @@ export default function ProdukDistributorPage() {
 
   const renderEditableCell = (
     row: ProdukDistributorRecord,
-    column: ProdukDistributorColumn
+    column: ProdukDistributorColumn,
+    isPendingDelete: boolean
   ) => {
     const value = getCellValue(row, column.name);
     const changed =
@@ -539,7 +551,10 @@ export default function ProdukDistributorPage() {
       return (
         <td
           key={column.name}
-          className="sticky left-0 z-10 overflow-hidden border-b bg-background p-2 align-top"
+          className={cn(
+            "sticky left-0 z-10 overflow-hidden border-b p-2 align-top",
+            isPendingDelete ? "bg-destructive/10 line-through" : "bg-background"
+          )}
           style={{ width: getColumnWidth(column.name) }}
         >
           <div
@@ -548,7 +563,7 @@ export default function ProdukDistributorPage() {
           >
             {displayValue(value)}
           </div>
-          {Object.keys(getChangedValues(row)).length > 0 && (
+          {!isPendingDelete && Object.keys(getChangedValues(row)).length > 0 && (
             <Button
               variant="outline"
               size="sm"
@@ -567,13 +582,18 @@ export default function ProdukDistributorPage() {
         key={column.name}
         className={cn(
           "overflow-hidden border-b p-1 align-top",
-          changed && "bg-amber-100 dark:bg-amber-950/40"
+          isPendingDelete && "bg-destructive/10 line-through",
+          !isPendingDelete && changed && "bg-amber-100 dark:bg-amber-950/40"
         )}
         style={{ width: getColumnWidth(column.name) }}
       >
         <Input
           type="text"
-          className="h-8 w-full min-w-0 border-transparent bg-transparent px-2 text-sm hover:border-input focus:border-input"
+          disabled={isPendingDelete}
+          className={cn(
+            "h-8 w-full min-w-0 border-transparent bg-transparent px-2 text-sm hover:border-input focus:border-input",
+            isPendingDelete && "line-through opacity-70"
+          )}
           value={value == null ? "" : String(value)}
           maxLength={column.max_length || undefined}
           onChange={(event) => setCellValue(row, column.name, event.target.value)}
@@ -593,7 +613,7 @@ export default function ProdukDistributorPage() {
       return (
         <td
           key={column.name}
-          className="sticky left-0 z-10 border-b bg-primary/10 p-2 align-middle font-semibold text-primary"
+          className="sticky left-0 z-10 border-b border-amber-300 bg-amber-200 p-2 align-middle font-bold text-amber-950 dark:border-amber-700 dark:bg-amber-900/80 dark:text-amber-100"
           style={{ width: getColumnWidth(column.name) }}
         >
           NEW
@@ -604,13 +624,13 @@ export default function ProdukDistributorPage() {
     return (
       <td
         key={column.name}
-        className="border-b bg-primary/5 p-1 align-top"
+        className="border-b border-amber-300 bg-amber-100 p-1 align-top dark:border-amber-800 dark:bg-amber-950/60"
         style={{ width: getColumnWidth(column.name) }}
       >
         <Input
           autoFocus={column.name === "Kode_Dist"}
           type="text"
-          className="h-8 w-full min-w-0 bg-background px-2 text-sm"
+          className="h-8 w-full min-w-0 border-amber-300 bg-amber-50 px-2 text-sm dark:border-amber-800 dark:bg-amber-950/40"
           value={row.values[column.name] ?? ""}
           maxLength={column.max_length || undefined}
           onChange={(event) =>
@@ -660,7 +680,9 @@ export default function ProdukDistributorPage() {
       {dirtyRowCount > 0 && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100">
           {dirtyRowCount} row belum disimpan
-          {insertRows.length > 0 ? ` (${insertRows.length} row baru)` : ""}
+          {insertRows.length > 0 ? `, ${insertRows.length} row baru` : ""}
+          {pendingUpdates.length > 0 ? `, ${pendingUpdates.length} row diedit` : ""}
+          {pendingDeleteIds.length > 0 ? `, ${pendingDeleteIds.length} row akan dihapus` : ""}
           {totalChangedFields > 0 ? `, ${totalChangedFields} field terisi/berubah.` : "."}
         </div>
       )}
@@ -778,14 +800,17 @@ export default function ProdukDistributorPage() {
               </thead>
               <tbody>
                 {insertRows.map((row) => (
-                  <tr key={row.localId}>
+                  <tr
+                    key={row.localId}
+                    className="bg-amber-100 dark:bg-amber-950/60"
+                  >
                     {columns.map((column) => renderInsertCell(row, column))}
-                    <td className="sticky right-0 border-b bg-primary/5 p-2 text-center">
+                    <td className="sticky right-0 border-b border-amber-300 bg-amber-100 p-2 text-center dark:border-amber-800 dark:bg-amber-950/60">
                       <div className="flex items-center justify-center gap-1">
                         <Button
                           variant="outline"
                           size="sm"
-                          className="h-8 w-8 p-0"
+                          className="h-8 w-8 border-amber-400 bg-amber-50 p-0 dark:border-amber-700 dark:bg-amber-950/40"
                           title="Duplicate row baru"
                           aria-label="Duplicate row baru"
                           onClick={() => duplicateInsertRow(row)}
@@ -796,7 +821,7 @@ export default function ProdukDistributorPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          className="h-8 w-8 border-amber-400 bg-amber-50 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive dark:border-amber-700 dark:bg-amber-950/40"
                           title="Batalkan row baru"
                           aria-label="Batalkan row baru"
                           onClick={() => removeInsertRow(row.localId)}
@@ -810,37 +835,65 @@ export default function ProdukDistributorPage() {
                 ))}
 
                 {data?.items.length ? (
-                  data.items.map((row) => (
-                    <tr key={row.id} className="hover:bg-muted/30">
-                      {columns.map((column) => renderEditableCell(row, column))}
-                      <td className="sticky right-0 border-b bg-background p-2 text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-8 w-8 p-0"
-                            title={`Duplicate ID ${row.id}`}
-                            aria-label={`Duplicate Produk Distributor ID ${row.id}`}
-                            onClick={() => duplicateExistingRow(row)}
-                            disabled={batchSaving || deleteSaving}
-                          >
-                            <Copy className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            className="h-8 w-8 p-0"
-                            title={`Delete ID ${row.id}`}
-                            aria-label={`Delete Produk Distributor ID ${row.id}`}
-                            onClick={() => setDeleteTarget(row)}
-                            disabled={batchSaving || deleteSaving}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                  data.items.map((row) => {
+                    const isPendingDelete = pendingDeleteSet.has(row.id);
+                    return (
+                      <tr
+                        key={row.id}
+                        className={cn(
+                          "hover:bg-muted/30",
+                          isPendingDelete && "bg-destructive/10 opacity-70 line-through"
+                        )}
+                      >
+                        {columns.map((column) =>
+                          renderEditableCell(row, column, isPendingDelete)
+                        )}
+                        <td
+                          className={cn(
+                            "sticky right-0 border-b p-2 text-center",
+                            isPendingDelete ? "bg-destructive/10" : "bg-background"
+                          )}
+                        >
+                          <div className="flex items-center justify-center gap-1 no-underline">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 w-8 p-0 no-underline"
+                              title={`Duplicate ID ${row.id}`}
+                              aria-label={`Duplicate Produk Distributor ID ${row.id}`}
+                              onClick={() => duplicateExistingRow(row)}
+                              disabled={batchSaving}
+                            >
+                              <Copy className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              variant={isPendingDelete ? "outline" : "destructive"}
+                              size="sm"
+                              className={cn(
+                                "h-8 w-8 p-0 no-underline",
+                                isPendingDelete &&
+                                  "border-destructive text-destructive hover:bg-destructive/10"
+                              )}
+                              title={
+                                isPendingDelete
+                                  ? `Batalkan delete ID ${row.id}`
+                                  : `Delete ID ${row.id}`
+                              }
+                              aria-label={
+                                isPendingDelete
+                                  ? `Batalkan delete Produk Distributor ID ${row.id}`
+                                  : `Delete Produk Distributor ID ${row.id}`
+                              }
+                              onClick={() => togglePendingDelete(row)}
+                              disabled={batchSaving}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
                 ) : insertRows.length ? null : loading ? (
                   <tr>
                     <td colSpan={columns.length + 1} className="p-8 text-center">
@@ -889,9 +942,10 @@ export default function ProdukDistributorPage() {
               <div className="rounded-md border bg-muted/30 p-3 text-sm">
                 <div>Row baru: {pendingCreates.length}</div>
                 <div>Row diedit: {pendingUpdates.length}</div>
+                <div>Row dihapus: {pendingDeleteIds.length}</div>
               </div>
               <p className="text-xs text-muted-foreground">
-                Semua insert dan update akan disimpan dalam satu transaksi.
+                Semua insert, update, dan delete akan disimpan dalam satu transaksi.
               </p>
               <div className="flex justify-end gap-2">
                 <Button
@@ -903,56 +957,6 @@ export default function ProdukDistributorPage() {
                 </Button>
                 <Button onClick={() => void saveAllChanges()} disabled={batchSaving}>
                   {batchSaving ? "Saving..." : `Save ${dirtyRowCount} Rows`}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {deleteTarget && (
-        <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/50 p-4">
-          <Card className="w-full max-w-lg">
-            <CardHeader>
-              <CardTitle>Delete Produk Distributor</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="rounded-md border bg-muted/30 p-3 text-sm">
-                <div>
-                  <strong>ID:</strong> {deleteTarget.id}
-                </div>
-                <div>
-                  <strong>Kode Dist:</strong> {deleteTarget.Kode_Dist}
-                </div>
-                <div>
-                  <strong>Name Dist:</strong> {deleteTarget.temp || "NULL"}
-                </div>
-                <div>
-                  <strong>Kode Produk Dist:</strong> {deleteTarget.Kode_Produk_Dist}
-                </div>
-                <div>
-                  <strong>Nama Produk Dist:</strong>{" "}
-                  {deleteTarget.Nama_Produk_Dist || "NULL"}
-                </div>
-              </div>
-              <p className="text-destructive">
-                Data akan dihapus langsung dari CRM.dbo.Produk_Distributor dan tidak
-                dapat di-undo dari aplikasi.
-              </p>
-              <div className="flex justify-end gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setDeleteTarget(null)}
-                  disabled={deleteSaving}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={() => void deleteRecord()}
-                  disabled={deleteSaving}
-                >
-                  {deleteSaving ? "Deleting..." : "Delete"}
                 </Button>
               </div>
             </CardContent>
