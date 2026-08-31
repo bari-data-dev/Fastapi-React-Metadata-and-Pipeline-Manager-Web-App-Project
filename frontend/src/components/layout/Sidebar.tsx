@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Database,
   FileBarChart2,
+  History,
   LogOut,
   Pill,
   TableProperties,
@@ -163,6 +164,25 @@ export function AppSidebar() {
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              {canViewMasterData && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <NavLink
+                      to="/reports/activity"
+                      className={navClass("/reports/activity")}
+                      onClick={closeMobileSidebar}
+                    >
+                      <History
+                        className={cn(
+                          "h-4 w-4 shrink-0",
+                          collapsed ? "mx-auto" : "mr-3"
+                        )}
+                      />
+                      {!collapsed && <span>Activity Report</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
                   <a
