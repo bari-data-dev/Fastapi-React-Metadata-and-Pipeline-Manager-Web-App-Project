@@ -30,7 +30,8 @@ const Index = () => {
   const canViewUsers =
     user?.role === "ADMIN" ||
     user?.role === "MANAGER" ||
-    user?.role === "PARSER-TEAM";
+    user?.role === "TEAM";
+  const canViewProdukDistributor = user?.role !== "INTERN";
 
   const features: HomeFeature[] = [
     {
@@ -41,14 +42,18 @@ const Index = () => {
       actionLabel: "Buka ODIST Parsing",
       actionTo: "/metadata/odists-parsing",
     },
-    {
-      icon: Database,
-      title: "Produk Distributor",
-      description:
-        "Kelola master produk distributor pada CRM dengan filter, sorting, insert, edit, dan delete langsung dari aplikasi.",
-      actionLabel: "Buka Produk Distributor",
-      actionTo: "/metadata/produk-distributor",
-    },
+    ...(canViewProdukDistributor
+      ? [
+          {
+            icon: Database,
+            title: "Produk Distributor",
+            description:
+              "Kelola master bronze_so.Produk_Distributor dengan filter, sorting, insert, edit, duplicate, dan delete langsung dari aplikasi.",
+            actionLabel: "Buka Produk Distributor",
+            actionTo: "/metadata/produk-distributor",
+          } satisfies HomeFeature,
+        ]
+      : []),
     ...(canViewUsers
       ? [
           {
@@ -69,7 +74,7 @@ const Index = () => {
       icon: ShieldCheck,
       title: "Audit Perubahan",
       description:
-        user?.role === "PARSER-INTERN"
+        user?.role === "INTERN"
           ? "Lihat effective result dan activity history milik akun Anda sendiri."
           : "Setiap perubahan ODIST dicatat bersama user, field, nilai lama, nilai baru, dan waktu perubahan data.",
       actionLabel: "Buka Parsing Report",
