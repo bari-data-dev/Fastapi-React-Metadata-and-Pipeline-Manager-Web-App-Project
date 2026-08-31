@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 
 
 class ProdukDistributorColumn(BaseModel):
@@ -41,12 +41,26 @@ class ProdukDistributorPage(BaseModel):
 class ProdukDistributorCreate(BaseModel):
     Kode_Dist: str = Field(..., min_length=1, max_length=15)
     Kode_Produk_Dist: str = Field(..., min_length=1, max_length=80)
-    Kode_Produk_GPL: Optional[str] = Field(None, max_length=15)
+    Kode_Produk_GPL: str = Field(..., min_length=1, max_length=15)
     Konversi_Unit: Optional[int] = None
-    Nama_Produk_GPL: Optional[str] = Field(None, max_length=100)
-    Nama_Produk_Dist: Optional[str] = Field(None, max_length=100)
+    Nama_Produk_GPL: str = Field(..., min_length=1, max_length=100)
+    Nama_Produk_Dist: str = Field(..., min_length=1, max_length=100)
     Produk_Paket: Optional[int] = None
-    temp: Optional[str] = Field(None, max_length=50)
+    temp: str = Field(..., min_length=1, max_length=50)
+
+    @validator(
+        "Kode_Dist",
+        "Kode_Produk_Dist",
+        "Kode_Produk_GPL",
+        "Nama_Produk_GPL",
+        "Nama_Produk_Dist",
+        "temp",
+    )
+    def required_text_must_not_be_blank(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("Field wajib diisi")
+        return normalized
 
 
 class ProdukDistributorUpdateRequest(BaseModel):
