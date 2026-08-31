@@ -90,9 +90,9 @@ def list_users(
 def create_user(
     payload: AppUserCreate,
     db: Session = Depends(get_session),
-    _: AppUser = Depends(require_admin),
+    current_user: AppUser = Depends(require_admin),
 ):
-    user = auth_service.create_user(db, payload)
+    user = auth_service.create_user(db, payload, current_user)
     return ApiResponse(
         success=True,
         data=AppUserRead.from_orm(user),
