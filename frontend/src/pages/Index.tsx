@@ -41,6 +41,14 @@ const Index = () => {
       actionLabel: "Buka ODIST Parsing",
       actionTo: "/metadata/odists-parsing",
     },
+    {
+      icon: Database,
+      title: "Produk Distributor",
+      description:
+        "Kelola master produk distributor pada CRM dengan filter, sorting, insert, edit, dan delete langsung dari aplikasi.",
+      actionLabel: "Buka Produk Distributor",
+      actionTo: "/metadata/produk-distributor",
+    },
     ...(canViewUsers
       ? [
           {
@@ -63,7 +71,7 @@ const Index = () => {
       description:
         user?.role === "PARSER-INTERN"
           ? "Lihat effective result dan activity history milik akun Anda sendiri."
-          : "Setiap perubahan ODIST dicatat bersama user, field, nilai lama, nilai baru, dan waktu perubahan.",
+          : "Setiap perubahan ODIST dicatat bersama user, field, nilai lama, nilai baru, dan waktu perubahan data.",
       actionLabel: "Buka Parsing Report",
       actionTo: "/reports/parsing",
     },
@@ -92,8 +100,8 @@ const Index = () => {
               Metadata & ODIST Parsing Manager
             </h1>
             <p className="mx-auto mt-6 max-w-3xl text-base leading-7 text-white/90 drop-shadow-md sm:text-lg lg:text-2xl lg:leading-8">
-              Aplikasi internal untuk proses parsing ODIST, pengelolaan user, dan
-              pencatatan audit perubahan data.
+              Aplikasi internal untuk proses parsing ODIST, pengelolaan metadata,
+              user, dan pencatatan audit perubahan data.
             </p>
             <p className="mt-5 text-sm font-medium text-white/75">
               Gunakan menu pada sidebar atau tombol fitur di bawah untuk membuka
