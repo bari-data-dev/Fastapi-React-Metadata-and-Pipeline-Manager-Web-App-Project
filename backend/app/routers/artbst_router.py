@@ -75,7 +75,7 @@ def create_artbst(
     current_user: AppUser = Depends(artbst_access),
 ):
     try:
-        created = artbst_service.create_record(db, payload.dict(), current_user.full_name)
+        created = artbst_service.create_record(db, payload.dict(), current_user)
         return ApiResponse(success=True, data=ArtbstRecord(**created), message="ARTBST berhasil ditambahkan")
     except Exception as exc:
         _handle_db_error(exc)
@@ -93,7 +93,7 @@ def save_artbst_changes(
             [item.dict() for item in payload.creates],
             [item.dict() for item in payload.updates],
             payload.deletes,
-            current_user.full_name,
+            current_user,
         )
         return ApiResponse(success=True, data=ArtbstSaveResult(**result), message=(
             f"{result['created_count']} row ditambahkan, "
@@ -111,7 +111,7 @@ def update_artbst_batch(
     current_user: AppUser = Depends(artbst_access),
 ):
     try:
-        result = artbst_service.update_batch(db, [item.dict() for item in payload.items], current_user.full_name)
+        result = artbst_service.update_batch(db, [item.dict() for item in payload.items], current_user)
         return ApiResponse(success=True, data=ArtbstBatchUpdateResult(**result), message=f"{result['updated_count']} row berhasil diperbarui")
     except Exception as exc:
         _handle_db_error(exc)
@@ -125,7 +125,7 @@ def update_artbst(
     current_user: AppUser = Depends(artbst_access),
 ):
     try:
-        updated = artbst_service.update_record(db, record_id, payload.values, current_user.full_name)
+        updated = artbst_service.update_record(db, record_id, payload.values, current_user)
         return ApiResponse(success=True, data=ArtbstRecord(**updated), message="ARTBST berhasil diperbarui")
     except Exception as exc:
         _handle_db_error(exc)
@@ -135,10 +135,10 @@ def update_artbst(
 def delete_artbst(
     record_id: int,
     db: Session = Depends(get_session),
-    _: AppUser = Depends(artbst_access),
+    current_user: AppUser = Depends(artbst_access),
 ):
     try:
-        result = artbst_service.delete_record(db, record_id)
+        result = artbst_service.delete_record(db, record_id, current_user)
         return ApiResponse(success=True, data=ArtbstDeleteResult(**result), message="ARTBST berhasil dihapus")
     except Exception as exc:
         _handle_db_error(exc)
