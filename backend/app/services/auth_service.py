@@ -10,32 +10,13 @@ from app.schemas.auth import AppUserCreate, AppUserUpdate
 
 
 VALID_ROLES = {"ADMIN", "TEAM", "MANAGER", "INTERN"}
-LEGACY_ROLE_MAP = {
-    "PARSER": "TEAM",
-    "PARSER-TEAM": "TEAM",
-    "PARSER-INTERN": "INTERN",
-}
 ADMIN_EDIT_FIELDS = {"username", "full_name", "password", "role", "is_active"}
 MANAGER_EDIT_FIELDS = {"is_active"}
 
 
-def _normalize_legacy_role(user: AppUser) -> bool:
-    mapped_role = LEGACY_ROLE_MAP.get(user.role)
-    if not mapped_role:
-        return False
-    user.role = mapped_role
-    user.updated_at = datetime.now()
-    return True
-
-
 def get_user_by_username(db: Session, username: str) -> AppUser | None:
     statement = select(AppUser).where(AppUser.username == username.strip().lower())
-    user = db.exec(statement).one_or_none()
-    if user is not None and _normalize_legacy_role(user):
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-    return user
+    return db.exec(statement).one_or_none()
 
 
 def get_user_by_id(db: Session, user_id: int) -> AppUser:
@@ -46,25 +27,11 @@ def get_user_by_id(db: Session, user_id: int) -> AppUser:
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User tidak ditemukan",
         )
-    if _normalize_legacy_role(user):
-        db.add(user)
-        db.commit()
-        db.refresh(user)
     return user
 
 
 def get_all_users(db: Session) -> List[AppUser]:
-    results = cast(List[AppUser], db.exec(select(AppUser).order_by(AppUser.user_id)).all())
-    changed = False
-    for user in results:
-        if _normalize_legacy_role(user):
-            db.add(user)
-            changed = True
-    if changed:
-        db.commit()
-        for user in results:
-            db.refresh(user)
-    return results
+    return cast(List[AppUser], db.exec(select(AppUser).order_by(AppUser.user_id)).all())
 
 
 def authenticate_user(db: Session, username: str, password: str) -> AppUser:
