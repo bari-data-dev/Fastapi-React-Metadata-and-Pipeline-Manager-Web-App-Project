@@ -3,8 +3,6 @@ uvicorn[standard]==0.30.6
 sqlmodel==0.0.21
 pyodbc==5.3.0
 pymysql==1.1.1
-JayDeBeApi==1.2.3
-JPype1==1.7.1
 pydantic==1.10.17
 python-dotenv==1.0.1
 python-jose[cryptography]==3.3.0
