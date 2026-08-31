@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
@@ -22,6 +23,10 @@ class ProdukDistributorRecord(BaseModel):
     Nama_Produk_Dist: Optional[str] = None
     Produk_Paket: Optional[int] = None
     temp: Optional[str] = None
+    dwh_created_by: Optional[str] = None
+    dwh_updated_by: Optional[str] = None
+    dwh_created_at: Optional[datetime] = None
+    dwh_updated_at: Optional[datetime] = None
 
 
 class ProdukDistributorPage(BaseModel):
