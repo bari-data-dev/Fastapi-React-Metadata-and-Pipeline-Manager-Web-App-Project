@@ -296,4 +296,10 @@
   .data-table th {
     @apply bg-muted/50 font-semibold text-muted-foreground;
   }
+
+  /* Main metadata grids: visible separator between columns */
+  [class*="max-h-[62dvh]"] > table > thead > tr > th:not(:last-child),
+  [class*="max-h-[62dvh]"] > table > tbody > tr > td:not(:last-child) {
+    border-right: 1px solid hsl(var(--border));
+  }
 }
