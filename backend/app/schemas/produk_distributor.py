@@ -34,8 +34,8 @@ class ProdukDistributorPage(BaseModel):
 
 
 class ProdukDistributorCreate(BaseModel):
-    Kode_Dist: str = Field(..., max_length=15)
-    Kode_Produk_Dist: str = Field(..., max_length=80)
+    Kode_Dist: str = Field(..., min_length=1, max_length=15)
+    Kode_Produk_Dist: str = Field(..., min_length=1, max_length=80)
     Kode_Produk_GPL: Optional[str] = Field(None, max_length=15)
     Konversi_Unit: Optional[int] = None
     Nama_Produk_GPL: Optional[str] = Field(None, max_length=100)
@@ -58,6 +58,18 @@ class ProdukDistributorBatchUpdateRequest(BaseModel):
 
 
 class ProdukDistributorBatchUpdateResult(BaseModel):
+    updated_count: int
+    updated_ids: List[int]
+
+
+class ProdukDistributorSaveRequest(BaseModel):
+    creates: List[ProdukDistributorCreate] = Field(default_factory=list)
+    updates: List[ProdukDistributorBatchUpdateItem] = Field(default_factory=list)
+
+
+class ProdukDistributorSaveResult(BaseModel):
+    created_count: int
+    created_ids: List[int]
     updated_count: int
     updated_ids: List[int]
 
