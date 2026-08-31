@@ -624,7 +624,7 @@ export default function ProdukDistributorPage() {
     return (
       <td
         key={column.name}
-        className="border-b border-amber-300 bg-amber-100 p-2 align-middle dark:border-amber-800 dark:bg-amber-950/60"
+        className="border-b border-amber-300 bg-amber-100 p-1 align-middle dark:border-amber-800 dark:bg-amber-950/60"
         style={{ width: getColumnWidth(column.name) }}
       >
         <Input
@@ -805,7 +805,7 @@ export default function ProdukDistributorPage() {
                     className="bg-amber-100 dark:bg-amber-950/60"
                   >
                     {columns.map((column) => renderInsertCell(row, column))}
-                    <td className="sticky right-0 border-b border-amber-300 bg-amber-100 p-2 text-center align-middle dark:border-amber-800 dark:bg-amber-950/60">
+                    <td className="sticky right-0 border-b border-amber-300 bg-amber-100 p-2 align-middle text-center dark:border-amber-800 dark:bg-amber-950/60">
                       <div className="flex items-center justify-center gap-1">
                         <Button
                           variant="outline"
@@ -995,6 +995,22 @@ export default function ProdukDistributorPage() {
                       Reset pilihan
                     </Button>
                   </div>
+
+                  {selectedValues.length > 0 && (
+                    <div className="flex max-h-24 flex-wrap gap-2 overflow-auto rounded-lg border bg-background p-2 sm:p-3">
+                      {selectedValues.map((value) => (
+                        <button
+                          key={valueKey(value)}
+                          type="button"
+                          onClick={() => toggleSelectedValue(value)}
+                          className="max-w-full truncate rounded-full border bg-muted px-3 py-1.5 text-xs font-medium hover:bg-muted/70"
+                          title="Klik untuk melepas value"
+                        >
+                          {value === null ? "NULL" : String(value)} ×
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="m-4 min-h-0 flex-1 overflow-auto rounded-md border sm:mx-6">
