@@ -61,7 +61,7 @@ function isValueFilterModalOpen() {
   );
 }
 
-function findOdistBatchActionButton(): HTMLButtonElement | null {
+function findBatchActionButton(): HTMLButtonElement | null {
   const buttons = Array.from(
     document.querySelectorAll<HTMLButtonElement>("button")
   ).filter((button) => isVisible(button));
@@ -75,7 +75,10 @@ function findOdistBatchActionButton(): HTMLButtonElement | null {
   return (
     buttons.find((button) => {
       const text = normalizedText(button);
-      return !button.disabled && text.startsWith("Save All");
+      return (
+        !button.disabled &&
+        (text.startsWith("Save All") || text.startsWith("Save Changes"))
+      );
     }) || null
   );
 }
@@ -156,7 +159,10 @@ function resetReportFilters() {
 function resetFiltersForActivePage() {
   const pathname = window.location.pathname;
 
-  if (pathname === "/metadata/odists-parsing") {
+  if (
+    pathname === "/metadata/odists-parsing" ||
+    pathname === "/metadata/produk-distributor"
+  ) {
     findVisibleButtonByText("Reset Filter")?.click();
     return true;
   }
@@ -241,14 +247,20 @@ export function InteractionEnhancements() {
       }
 
       if (key !== "s") return;
-      if (window.location.pathname !== "/metadata/odists-parsing") return;
+      const pathname = window.location.pathname;
+      if (
+        pathname !== "/metadata/odists-parsing" &&
+        pathname !== "/metadata/produk-distributor"
+      ) {
+        return;
+      }
 
       event.preventDefault();
       event.stopPropagation();
       event.stopImmediatePropagation();
 
       if (isValueFilterModalOpen()) return;
-      findOdistBatchActionButton()?.click();
+      findBatchActionButton()?.click();
     };
 
     const handleWheel = (event: WheelEvent) => {
