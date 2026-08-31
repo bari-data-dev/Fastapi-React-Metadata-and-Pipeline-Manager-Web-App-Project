@@ -20,6 +20,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import LoginPage from "./pages/LoginPage";
 import Index from "./pages/Index";
 import OdistsParsingPage from "./pages/metadata/OdistsParsingPage";
+import ProdukDistributorPage from "./pages/metadata/ProdukDistributorPage";
 import ParsingReportPage from "./pages/reports/ParsingReportPage";
 import UsersPage from "./pages/admin/UsersPage";
 
@@ -29,6 +30,7 @@ const DEFAULT_PROTECTED_PATH = "/metadata/odists-parsing";
 const PROTECTED_PATHS = [
   "/",
   "/metadata/odists-parsing",
+  "/metadata/produk-distributor",
   "/reports/parsing",
   "/admin/users",
 ] as const;
@@ -77,6 +79,14 @@ function PersistentProtectedPages() {
           aria-hidden={activePath !== "/metadata/odists-parsing"}
         >
           <OdistsParsingPage />
+        </div>
+      )}
+      {shouldRender("/metadata/produk-distributor") && (
+        <div
+          hidden={activePath !== "/metadata/produk-distributor"}
+          aria-hidden={activePath !== "/metadata/produk-distributor"}
+        >
+          <ProdukDistributorPage />
         </div>
       )}
       {shouldRender("/reports/parsing") && (
