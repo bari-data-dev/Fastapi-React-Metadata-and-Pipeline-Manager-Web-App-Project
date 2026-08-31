@@ -9,8 +9,12 @@ from app.models.app_user import AppUser
 from app.schemas.auth import AppUserCreate, AppUserUpdate
 
 
-VALID_ROLES = {"ADMIN", "PARSER-TEAM", "PARSER-INTERN", "MANAGER"}
-LEGACY_ROLE_MAP = {"PARSER": "PARSER-TEAM"}
+VALID_ROLES = {"ADMIN", "TEAM", "MANAGER", "INTERN"}
+LEGACY_ROLE_MAP = {
+    "PARSER": "TEAM",
+    "PARSER-TEAM": "TEAM",
+    "PARSER-INTERN": "INTERN",
+}
 ADMIN_EDIT_FIELDS = {"username", "full_name", "password", "role", "is_active"}
 MANAGER_EDIT_FIELDS = {"is_active"}
 
