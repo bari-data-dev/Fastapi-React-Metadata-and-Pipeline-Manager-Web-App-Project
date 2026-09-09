@@ -79,7 +79,6 @@ FIELD_DEFS: Dict[str, Dict[str, Any]] = {
 COLUMNS = list(FIELD_DEFS.keys())
 EDITABLE_FIELDS = [name for name, definition in FIELD_DEFS.items() if definition["editable"]]
 DATE_FIELDS = {"Tgl_Gabung", "Tgl_Data_Pertama"}
-REQUIRED_FIELDS = set(EDITABLE_FIELDS)
 
 
 def _column_sql(name: str) -> str:
@@ -207,15 +206,23 @@ def _normalize_date(field: str, value: Any) -> str:
     if not raw:
         raise ValueError(f"{FIELD_DEFS[field]['label']} wajib diisi")
 
-    match = re.match(r"^(\d{4}-\d{2}-\d{2})", raw)
-    if not match:
-        raise ValueError(f"{FIELD_DEFS[field]['label']} harus berupa tanggal valid")
-    date_part = match.group(1)
-    try:
-        datetime.strptime(date_part, "%Y-%m-%d")
-    except ValueError as exc:
-        raise ValueError(f"{FIELD_DEFS[field]['label']} harus berupa tanggal valid") from exc
-    return f"{date_part} 00:00:00"
+    iso_match = re.match(r"^(\d{4}-\d{2}-\d{2})", raw)
+    if iso_match:
+        date_part = iso_match.group(1)
+        try:
+            datetime.strptime(date_part, "%Y-%m-%d")
+        except ValueError as exc:
+            raise ValueError(f"{FIELD_DEFS[field]['label']} harus berupa tanggal valid") from exc
+        return f"{date_part} 00:00:00"
+
+    for date_format in ("%d/%m/%Y", "%d-%m-%Y", "%Y/%m/%d"):
+        try:
+            parsed = datetime.strptime(raw, date_format)
+            return parsed.strftime("%Y-%m-%d 00:00:00")
+        except ValueError:
+            continue
+
+    raise ValueError(f"{FIELD_DEFS[field]['label']} harus berupa tanggal valid")
 
 
 def _normalize_write_value(field: str, value: Any) -> str:
@@ -266,10 +273,10 @@ def _merged_snapshot(old_row: Dict[str, Any], changes: Dict[str, Any]) -> Dict[s
 
 
 def _validate_complete_snapshot(snapshot: Dict[str, Any]) -> Dict[str, str]:
-    normalized: Dict[str, str] = {}
-    for field in EDITABLE_FIELDS:
-        normalized[field] = _normalize_write_value(field, snapshot.get(field))
-    return normalized
+    return {
+        field: _normalize_write_value(field, snapshot.get(field))
+        for field in EDITABLE_FIELDS
+    }
 
 
 def _actual_changes(old_row: Dict[str, Any], values: Dict[str, Any]) -> Dict[str, Any]:
@@ -283,6 +290,10 @@ def _actual_changes(old_row: Dict[str, Any], values: Dict[str, Any]) -> Dict[str
 def _record_label(values: Dict[str, Any]) -> str:
     parts = [values.get("Kode_Dist"), values.get("Nama_Dist")]
     return " | ".join(str(value) for value in parts if value not in (None, ""))
+
+
+def _actor(current_user: AppUser) -> str:
+    return activity_audit_service.actor_name(current_user)[:100]
 
 
 def get_page(
@@ -394,12 +405,16 @@ def create_record(
             db.execute(
                 text(
                     f"""
-                    INSERT INTO {TABLE_SQL} ({columns})
+                    INSERT INTO {TABLE_SQL} (
+                        {columns}, [dwh_created_by], [dwh_created_at]
+                    )
                     OUTPUT INSERTED.[{ID_FIELD}]
-                    VALUES ({placeholders})
+                    VALUES (
+                        {placeholders}, :actor_name, SYSDATETIME()
+                    )
                     """
                 ),
-                normalized,
+                {**normalized, "actor_name": _actor(current_user)},
             ).scalar_one()
         )
         activity_audit_service.record_activity(
@@ -449,14 +464,19 @@ def update_record(
         f"{_column_sql(field)} = :v_{field}" for field in changed
     )
     params = {f"v_{field}": value for field, value in changed.items()}
-    params["id"] = record_id
+    params.update({"id": record_id, "actor_name": _actor(current_user)})
     batch_id = activity_audit_service.new_batch_id()
 
     try:
         db.execute(
             text(
-                f"UPDATE {TABLE_SQL} SET {assignments} "
-                f"WHERE [{ID_FIELD}] = :id"
+                f"""
+                UPDATE {TABLE_SQL}
+                SET {assignments},
+                    [dwh_updated_by] = :actor_name,
+                    [dwh_updated_at] = SYSDATETIME()
+                WHERE [{ID_FIELD}] = :id
+                """
             ),
             params,
         )
@@ -506,17 +526,23 @@ def update_batch(
 
     updated_ids: List[int] = []
     batch_id = activity_audit_service.new_batch_id()
+    actor = _actor(current_user)
     try:
         for record_id, old_row, changed, complete_snapshot in prepared:
             assignments = ", ".join(
                 f"{_column_sql(field)} = :v_{field}" for field in changed
             )
             params = {f"v_{field}": value for field, value in changed.items()}
-            params["id"] = record_id
+            params.update({"id": record_id, "actor_name": actor})
             db.execute(
                 text(
-                    f"UPDATE {TABLE_SQL} SET {assignments} "
-                    f"WHERE [{ID_FIELD}] = :id"
+                    f"""
+                    UPDATE {TABLE_SQL}
+                    SET {assignments},
+                        [dwh_updated_by] = :actor_name,
+                        [dwh_updated_at] = SYSDATETIME()
+                    WHERE [{ID_FIELD}] = :id
+                    """
                 ),
                 params,
             )
@@ -588,6 +614,7 @@ def save_changes(
     updated_ids: List[int] = []
     deleted_ids: List[int] = []
     batch_id = activity_audit_service.new_batch_id()
+    actor = _actor(current_user)
     insert_columns = ", ".join(_column_sql(field) for field in EDITABLE_FIELDS)
     insert_values = ", ".join(f":{field}" for field in EDITABLE_FIELDS)
 
@@ -597,12 +624,16 @@ def save_changes(
                 db.execute(
                     text(
                         f"""
-                        INSERT INTO {TABLE_SQL} ({insert_columns})
+                        INSERT INTO {TABLE_SQL} (
+                            {insert_columns}, [dwh_created_by], [dwh_created_at]
+                        )
                         OUTPUT INSERTED.[{ID_FIELD}]
-                        VALUES ({insert_values})
+                        VALUES (
+                            {insert_values}, :actor_name, SYSDATETIME()
+                        )
                         """
                     ),
-                    values,
+                    {**values, "actor_name": actor},
                 ).scalar_one()
             )
             activity_audit_service.record_activity(
@@ -626,11 +657,16 @@ def save_changes(
                 f"{_column_sql(field)} = :v_{field}" for field in changed
             )
             params = {f"v_{field}": value for field, value in changed.items()}
-            params["id"] = record_id
+            params.update({"id": record_id, "actor_name": actor})
             db.execute(
                 text(
-                    f"UPDATE {TABLE_SQL} SET {assignments} "
-                    f"WHERE [{ID_FIELD}] = :id"
+                    f"""
+                    UPDATE {TABLE_SQL}
+                    SET {assignments},
+                        [dwh_updated_by] = :actor_name,
+                        [dwh_updated_at] = SYSDATETIME()
+                    WHERE [{ID_FIELD}] = :id
+                    """
                 ),
                 params,
             )
@@ -655,8 +691,7 @@ def save_changes(
             snapshot = {field: old_row.get(field) for field in EDITABLE_FIELDS}
             db.execute(
                 text(
-                    f"DELETE FROM {TABLE_SQL} "
-                    f"WHERE [{ID_FIELD}] = :id"
+                    f"DELETE FROM {TABLE_SQL} WHERE [{ID_FIELD}] = :id"
                 ),
                 {"id": record_id},
             )
@@ -704,10 +739,7 @@ def delete_record(
 
     try:
         db.execute(
-            text(
-                f"DELETE FROM {TABLE_SQL} "
-                f"WHERE [{ID_FIELD}] = :id"
-            ),
+            text(f"DELETE FROM {TABLE_SQL} WHERE [{ID_FIELD}] = :id"),
             {"id": record_id},
         )
         activity_audit_service.record_activity(
