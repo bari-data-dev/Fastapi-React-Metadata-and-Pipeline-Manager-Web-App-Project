@@ -6,6 +6,7 @@ import {
   Pill,
   ShieldCheck,
   TableProperties,
+  Truck,
   Users,
 } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -54,6 +55,14 @@ const Index = () => {
               "Kelola master bronze_so.Produk_Distributor dengan filter, sorting, insert, edit, duplicate, dan delete langsung dari aplikasi.",
             actionLabel: "Buka Produk Distributor",
             actionTo: "/metadata/produk-distributor",
+          } satisfies HomeFeature,
+          {
+            icon: Truck,
+            title: "Distributor",
+            description:
+              "Kelola master bronze_so.distributor termasuk kode grup, nama grup, tanggal bergabung, tanggal data pertama, dan status aktif.",
+            actionLabel: "Buka Distributor",
+            actionTo: "/metadata/distributor",
           } satisfies HomeFeature,
           {
             icon: Banknote,
