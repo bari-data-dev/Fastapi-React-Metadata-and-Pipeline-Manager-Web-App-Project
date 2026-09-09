@@ -10,6 +10,7 @@ import {
   LogOut,
   Pill,
   TableProperties,
+  Truck,
   Users,
 } from "lucide-react";
 import {
@@ -51,6 +52,11 @@ export function AppSidebar() {
             title: "Produk Distributor",
             url: "/metadata/produk-distributor",
             icon: Pill,
+          },
+          {
+            title: "Distributor",
+            url: "/metadata/distributor",
+            icon: Truck,
           },
           {
             title: "ARTBST",
