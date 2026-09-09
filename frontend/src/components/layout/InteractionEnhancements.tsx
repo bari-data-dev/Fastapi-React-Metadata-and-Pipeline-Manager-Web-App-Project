@@ -173,6 +173,7 @@ function resetFiltersForActivePage() {
   if (
     pathname === "/metadata/odists-parsing" ||
     pathname === "/metadata/produk-distributor" ||
+    pathname === "/metadata/distributor" ||
     pathname === "/metadata/artbst"
   ) {
     findVisibleButtonByText("Reset Filter")?.click();
@@ -267,6 +268,7 @@ export function InteractionEnhancements() {
       const isMetadataEditor =
         pathname === "/metadata/odists-parsing" ||
         pathname === "/metadata/produk-distributor" ||
+        pathname === "/metadata/distributor" ||
         pathname === "/metadata/artbst";
 
       if (
