@@ -40,34 +40,38 @@ export function AppSidebar() {
     user?.role === "ADMIN" || user?.role === "MANAGER" || user?.role === "TEAM";
   const canViewMasterData = user?.role !== "INTERN";
 
-  const items = [
+  const parsingItems = [
     {
       title: "Parsing",
       url: "/metadata/odists-parsing",
       icon: TableProperties,
     },
-    ...(canViewMasterData
-      ? [
-          {
-            title: "Produk Distributor",
-            url: "/metadata/produk-distributor",
-            icon: Pill,
-          },
-          {
-            title: "Distributor",
-            url: "/metadata/distributor",
-            icon: Truck,
-          },
-          {
-            title: "ARTBST",
-            url: "/metadata/artbst",
-            icon: Banknote,
-          },
-        ]
-      : []),
-    ...(canViewUsers
-      ? [{ title: "User Management", url: "/admin/users", icon: Users }]
-      : []),
+  ];
+
+  const masterDataItems = [
+    {
+      title: "Produk Distributor",
+      url: "/metadata/produk-distributor",
+      icon: Pill,
+    },
+    {
+      title: "List Distributor",
+      url: "/metadata/distributor",
+      icon: Truck,
+    },
+    {
+      title: "Produk Price",
+      url: "/metadata/artbst",
+      icon: Banknote,
+    },
+  ];
+
+  const administrationItems = [
+    {
+      title: "User Management",
+      url: "/admin/users",
+      icon: Users,
+    },
   ];
 
   const navClass = (path: string) =>
@@ -87,6 +91,33 @@ export function AppSidebar() {
     logout();
     navigate("/login", { replace: true });
   };
+
+  const renderMenuItems = (
+    items: Array<{
+      title: string;
+      url: string;
+      icon: typeof TableProperties;
+    }>
+  ) =>
+    items.map((item) => (
+      <SidebarMenuItem key={item.url}>
+        <SidebarMenuButton asChild>
+          <NavLink
+            to={item.url}
+            className={navClass(item.url)}
+            onClick={closeMobileSidebar}
+          >
+            <item.icon
+              className={cn(
+                "h-4 w-4 shrink-0",
+                collapsed ? "mx-auto" : "mr-3"
+              )}
+            />
+            {!collapsed && <span>{item.title}</span>}
+          </NavLink>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    ));
 
   return (
     <Sidebar
@@ -120,32 +151,34 @@ export function AppSidebar() {
       <SidebarContent className="p-2">
         <SidebarGroup>
           <SidebarGroupLabel className={cn(collapsed && "sr-only")}>
-            Data Management
+            Parsing Data
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
-              {items.map((item) => (
-                <SidebarMenuItem key={item.url}>
-                  <SidebarMenuButton asChild>
-                    <NavLink
-                      to={item.url}
-                      className={navClass(item.url)}
-                      onClick={closeMobileSidebar}
-                    >
-                      <item.icon
-                        className={cn(
-                          "h-4 w-4 shrink-0",
-                          collapsed ? "mx-auto" : "mr-3"
-                        )}
-                      />
-                      {!collapsed && <span>{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
+            <SidebarMenu>{renderMenuItems(parsingItems)}</SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {canViewMasterData && (
+          <SidebarGroup className="mt-3">
+            <SidebarGroupLabel className={cn(collapsed && "sr-only")}>
+              Master Data Management
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>{renderMenuItems(masterDataItems)}</SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {canViewUsers && (
+          <SidebarGroup className="mt-3">
+            <SidebarGroupLabel className={cn(collapsed && "sr-only")}>
+              Administration
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>{renderMenuItems(administrationItems)}</SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         <SidebarGroup className="mt-6">
           <SidebarGroupLabel className={cn(collapsed && "sr-only")}>
