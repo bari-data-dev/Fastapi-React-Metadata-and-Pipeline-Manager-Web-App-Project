@@ -172,8 +172,8 @@ General role behavior:
 | Outlet Distributor Parsing | Yes | Yes | Yes | Yes |
 | Parsing Report | Yes | Yes | Yes | Own/restricted data |
 | Produk Distributor | Yes | Yes | Yes | No |
-| ARTBST | Yes | Yes | Yes | No |
-| Distributor | Yes | Yes | Yes | No |
+| Produk Price (`ARTBST`) | Yes | Yes | Yes | No |
+| List Distributor (`Distributor`) | Yes | Yes | Yes | No |
 | Activity Report | Yes | Yes | Yes | No |
 | User Management view | Yes | Yes | Yes | No |
 | Create/edit user detail | Yes | No | No | No |
@@ -205,6 +205,10 @@ Page title:
 
 `Outlet Distributor Parsing`
 
+Sidebar label:
+
+`Parsing`
+
 This is the parsing/editor workflow for ODIST data.
 
 Parsing-specific audit is intentionally separate from generic master-data activity audit.
@@ -225,6 +229,10 @@ Primary table:
 
 `bronze_so.Produk_Distributor`
 
+Sidebar label:
+
+`Produk Distributor`
+
 Sidebar icon:
 
 `Pill`
@@ -233,7 +241,7 @@ This page is the main UI/UX reference for editable master grids.
 
 ---
 
-## ARTBST
+## Produk Price (technical module: ARTBST)
 
 Route:
 
@@ -246,6 +254,12 @@ Backend prefix:
 Primary table:
 
 `bronze_so.ARTBST`
+
+Sidebar label:
+
+`Produk Price`
+
+Technical identifiers, backend names, route names, and the physical table still use `ARTBST` for compatibility unless explicitly changed later.
 
 Sidebar icon:
 
@@ -263,7 +277,7 @@ All business fields are required on INSERT.
 
 ---
 
-## Distributor
+## List Distributor (technical module: Distributor)
 
 Route:
 
@@ -276,6 +290,12 @@ Backend prefix:
 Primary table:
 
 `bronze_so.distributor`
+
+Sidebar label:
+
+`List Distributor`
+
+Technical identifiers, backend names, route names, and the physical table still use `Distributor` / `distributor` for compatibility unless explicitly changed later.
 
 Access:
 
@@ -441,8 +461,8 @@ Activity Report records historical actions such as:
 ### Currently audited modules
 
 - Produk Distributor
-- ARTBST
-- Distributor
+- ARTBST / Produk Price
+- Distributor / List Distributor
 - User Management
 
 Future master-data modules should reuse the same generic audit mechanism.
@@ -482,6 +502,10 @@ When a password changes, audit only records that the password changed, not the s
 Route:
 
 `/admin/users`
+
+Sidebar section:
+
+`Administration`
 
 User Management has intentionally different status behavior from Distributor.
 
@@ -552,8 +576,8 @@ Current metadata editor shortcut coverage includes:
 
 - Outlet Distributor Parsing
 - Produk Distributor
-- ARTBST
-- Distributor
+- ARTBST / Produk Price
+- Distributor / List Distributor
 
 ---
 
@@ -578,8 +602,8 @@ Used for master-data and application administration history.
 Current modules:
 
 - Produk Distributor
-- ARTBST
-- Distributor
+- ARTBST / Produk Price
+- Distributor / List Distributor
 - User Management
 
 Do not merge parsing audit into generic Activity Report unless requirements explicitly change.
@@ -615,7 +639,7 @@ Produk Distributor implementation:
 - `backend/app/services/produk_distributor_service.py`
 - `backend/app/routers/produk_distributor_router.py`
 
-ARTBST implementation:
+ARTBST / Produk Price implementation:
 
 - `backend/app/schemas/artbst.py`
 - `backend/app/services/artbst_service.py`
@@ -681,13 +705,25 @@ Also enforce role restrictions in that routing layer where appropriate.
 
 # 11. Current Sidebar Structure
 
-## Data Management
+The old single `Data Management` group has been split into functional segments.
 
-- Parsing
-- Produk Distributor
-- Distributor
-- ARTBST
-- User Management where permitted
+## Parsing Data
+
+- Parsing -> `/metadata/odists-parsing`
+
+## Master Data Management
+
+Visible to ADMIN, MANAGER, and TEAM; hidden from INTERN.
+
+- Produk Distributor -> `/metadata/produk-distributor`
+- List Distributor -> `/metadata/distributor`
+- Produk Price -> `/metadata/artbst`
+
+## Administration
+
+Visible where User Management is permitted.
+
+- User Management -> `/admin/users`
 
 ## Analytics
 
@@ -695,12 +731,20 @@ Also enforce role restrictions in that routing layer where appropriate.
 - Activity Report where permitted
 - Dashboard external link
 
-Important icons currently used:
+Important sidebar labels/icons currently used:
 
+- Parsing -> `TableProperties`
 - Produk Distributor -> `Pill`
-- Distributor -> truck/distribution-oriented icon
-- ARTBST -> `Banknote`
+- List Distributor -> `Truck`
+- Produk Price -> `Banknote`
+- User Management -> `Users`
 - Activity Report -> `History`
+
+Technical naming note:
+
+- `Produk Price` is only the user-facing navigation label for the existing ARTBST module.
+- `List Distributor` is only the user-facing navigation label for the existing Distributor module.
+- Existing routes, backend services, audit module keys, and physical table names remain unchanged unless explicitly requested.
 
 ---
 
@@ -787,16 +831,18 @@ Do not assume a source-code CORS change is required before checking runtime conf
 
 # 15. Current Naming
 
-Preferred product/page naming:
+Preferred user-facing/navigation naming:
 
 - `Outlet Distributor Parsing`, not `ODIST Parsing` as a page title
+- `Parsing` in the sidebar for the parsing editor
 - `Produk Distributor`
-- `Distributor`
-- `ARTBST`
+- `List Distributor` for the technical Distributor module
+- `Produk Price` for the technical ARTBST module
+- `User Management`
 - `Parsing Report`
 - `Activity Report`
 
-Some older technical names remain in code/database identifiers for compatibility.
+Some older technical names intentionally remain in code/database identifiers for compatibility, especially `ARTBST` and `Distributor`.
 
 ---
 
@@ -808,12 +854,12 @@ Completed / implemented in repository:
 - Outlet Distributor Parsing
 - Parsing Report
 - Produk Distributor CRUD grid
-- ARTBST CRUD grid
+- ARTBST CRUD grid / Produk Price navigation
 - User Management
 - generic Activity Report
 - generic master-data audit integration
 - Distributor backend CRUD
-- Distributor frontend grid
+- Distributor frontend grid / List Distributor navigation
 - Distributor sidebar navigation
 - Distributor home entry
 - Distributor keyboard shortcut integration
@@ -821,6 +867,7 @@ Completed / implemented in repository:
 - date picker inputs on Distributor
 - required-field validation on Distributor insert/update
 - DWH actor/timestamp writes for Distributor
+- sidebar split into Parsing Data, Master Data Management, Administration, and Analytics
 - removal of automatic Activity Report schema creation
 - removal of structural DDL migration scripts from the repository
 
@@ -873,6 +920,16 @@ Decision:
 - preserve valid existing numeric IDs during manual migration,
 - fail migration rather than silently remapping invalid/duplicate IDs.
 
+## Sidebar information architecture
+
+Decision:
+
+- do not keep all operational pages under one generic `Data Management` group,
+- Parsing editor belongs under `Parsing Data`,
+- Produk Distributor, List Distributor, and Produk Price belong under `Master Data Management`,
+- User Management belongs under `Administration`,
+- reporting links remain under `Analytics`.
+
 ---
 
 # 19. Code Quality / Safety Expectations
@@ -905,7 +962,7 @@ When continuing this project in a new ChatGPT conversation, use this sequence:
 7. Determine whether the change needs generic Activity Report audit integration.
 8. Preserve role restrictions.
 9. Do not claim build/runtime/deployment validation unless it was actually run.
-10. Update this README when a material architectural rule, page, table contract, or workflow decision changes.
+10. Update this README when a material architectural rule, page, table contract, navigation structure, or workflow decision changes.
 
 ---
 
@@ -917,6 +974,7 @@ Update it whenever there is a material change to:
 
 - architecture
 - route/page inventory
+- sidebar/navigation information architecture
 - roles/permissions
 - database contracts
 - audit behavior
